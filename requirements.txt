@@ -1,0 +1,16 @@
+# Core runtime. Every pin is exact so a build is reproducible; `pip-audit`
+# runs weekly in CI so a stale pin cannot quietly rot into a known CVE.
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+sqlmodel==0.0.42
+pydantic==2.13.5
+pydantic-settings==2.15.0
+
+# Security primitives
+argon2-cffi==25.1.0
+cryptography==50.0.1
+pyjwt==2.13.0
+pyotp==2.10.0
+
+# HTTP client: used by seed.py and by starlette's TestClient
+httpx2==2.12.0
