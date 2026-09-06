@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.db
+*.db-journal
+.env
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+models/*.joblib
+*.db-shm
+*.db-wal
+.DS_Store

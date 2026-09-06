@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  schedule:
+    # Dependencies rot even when the code does not — re-audit weekly.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: tests (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The ML extra needs 3.12+; the core install is verified on 3.11 by
+        # the `core` job below.
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Static security scan
+        run: bandit -c pyproject.toml -r app seed.py
+
+      - name: Tests
+        run: pytest tests/ -q
+
+  core:
+    name: core install, no ML extra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install runtime only
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest==9.1.1 pytest-asyncio==1.4.0
+      - name: numpy and scikit-learn really are absent
+        run: |
+          python - <<'PY'
+          import importlib.util as u
+          from app.detect.anomaly import HAVE_SKLEARN
+          assert u.find_spec("numpy") is None, "numpy leaked into the core install"
+          assert HAVE_SKLEARN is False
+          print("core install confirmed: z-score fallback active")
+          PY
+      - name: Tests
+        run: pytest tests/ -q
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit==2.10.1
+      - name: Known CVEs in dependencies
+        run: |
+          pip-audit -r requirements.txt --strict
+          pip-audit -r requirements-ml.txt --strict
+
+  image:
+    name: container build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: skyrecon:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Boot it and check health
+        env:
+          # Ephemeral secrets: this container is destroyed at the end of the job.
+          SKYRECON_JWT_SECRET: ci-only-secret-value-not-used-anywhere-else-01
+        run: |
+          KEY=$(docker run --rm skyrecon:ci python -c \
+            "from app.security.crypto import generate_master_key; print(generate_master_key())")
+          docker run -d --name skyrecon-ci -p 8000:8000 \
+            -e SKYRECON_MASTER_KEY="$KEY" \
+            -e SKYRECON_JWT_SECRET="$SKYRECON_JWT_SECRET" \
+            skyrecon:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/api/health; then
+              echo "\nhealthy after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "service never became healthy"; docker logs skyrecon-ci; exit 1
+
+      - name: Logs
+        if: always()
+        run: docker logs skyrecon-ci || true

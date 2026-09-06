@@ -1,0 +1,3 @@
+# Optional: PostgreSQL driver. Install alongside requirements.txt when
+# SKYRECON_DATABASE_URL points at postgresql+psycopg://…
+psycopg[binary]==3.3.5

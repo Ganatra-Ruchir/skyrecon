@@ -1,0 +1,45 @@
+[project]
+name = "skyrecon"
+version = "2.0.0"
+description = "Threat intelligence and detection platform with per-field encryption at rest"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Ruchir Ganatra" }]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = [".venv", "venv", "__pycache__"]
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle
+  "F",    # pyflakes
+  "I",    # import order
+  "B",    # bugbear
+  "UP",   # pyupgrade
+  "S",    # bandit-equivalent rules
+  "C4",   # comprehensions
+  "SIM",  # simplify
+  "RUF",
+]
+ignore = [
+  "S101",   # asserts are how the tests are written
+  "E501",   # long lines are caught by the formatter, not the linter
+  "B008",   # FastAPI Depends() in defaults is the framework's idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+# σ is deliberate in the anomaly explanations analysts read.
+"app/detect/anomaly.py" = ["RUF001", "RUF002"]
+"tests/*" = ["S105", "S106", "S311"]   # hard-coded test credentials are the point
+"seed.py" = ["S105", "S106", "S311"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "venv"]
