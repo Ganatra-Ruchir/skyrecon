@@ -1,0 +1,21 @@
+# Runtime dependencies for the Vercel serverless function.
+#
+# `@vercel/python` installs the requirements.txt that sits beside the
+# entrypoint, not the one at the repository root — a root-only file produces
+# `ModuleNotFoundError: No module named 'fastapi'` at import time, which
+# surfaces as a bare 500 with no other explanation.
+#
+# This list is deliberately narrower than the root file. A serverless function
+# has no use for uvicorn (Vercel supplies the server) or httpx2 (only seed.py
+# and the tests import it), and everything shipped counts against the 250 MB
+# unzipped function limit — of which cryptography is already a large share.
+
+fastapi==0.141.1
+sqlmodel==0.0.42
+pydantic==2.13.5
+pydantic-settings==2.15.0
+
+argon2-cffi==25.1.0
+cryptography==50.0.1
+pyjwt==2.13.0
+pyotp==2.10.0
