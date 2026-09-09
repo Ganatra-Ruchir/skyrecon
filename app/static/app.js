@@ -101,12 +101,80 @@
   $("#logout").addEventListener("click", signOut);
 
   /* ── navigation ──────────────────────────────────────── */
-  $("#tabs").addEventListener("click", (e) => {
-    const tab = e.target.closest(".tab");
+  function switchTab(view) {
+    const tab = $(`.tab[data-view="${view}"]`);
     if (!tab) return;
     $$(".tab").forEach((t) => t.classList.toggle("on", t === tab));
-    $$(".view").forEach((v) => v.classList.toggle("on", v.dataset.view === tab.dataset.view));
-    load(tab.dataset.view);
+    $$(".view").forEach((v) => v.classList.toggle("on", v.dataset.view === view));
+    load(view);
+  }
+  $("#tabs").addEventListener("click", (e) => {
+    const tab = e.target.closest(".tab");
+    if (tab) switchTab(tab.dataset.view);
+  });
+
+  /* ── universal search ───────────────────────────────── */
+  let lastSearch = null;
+
+  function renderSearchResult(q, r) {
+    if (!r.detected_type) return `<div class="sr-empty">Could not classify "${esc(q)}".</div>`;
+    if (r.supported && r.stored) {
+      const i = r.stored;
+      return `<div class="sr-type">${esc(r.detected_type)} · stored</div>
+        <div class="ioc">${esc(i.defanged)}</div>
+        <div class="mini-empty">Risk ${i.risk_score}/100 · ${esc(i.severity)} · confidence ${i.effective_confidence}/100</div>
+        <div class="sr-actions"><button class="btn primary sm" id="sr-open">Open in Indicators</button></div>`;
+    }
+    if (r.supported) {
+      return `<div class="sr-type">${esc(r.detected_type)} · not stored</div>
+        <div class="sr-empty">Not in the database yet.</div>
+        <div class="sr-actions"><button class="btn primary sm" id="sr-add">Add as indicator</button></div>`;
+    }
+    return `<div class="sr-type">${esc(r.detected_type)}</div>
+      <div class="sr-empty">Recognized format, but SkyRecon doesn't have enrichment for this type yet.</div>`;
+  }
+
+  async function runSearch(q) {
+    const panel = $("#search-results");
+    panel.hidden = false;
+    panel.innerHTML = `<div class="sr-empty">Searching…</div>`;
+    try {
+      lastSearch = await api(`/api/search?q=${encodeURIComponent(q)}`);
+      panel.innerHTML = renderSearchResult(q, lastSearch);
+    } catch (ex) {
+      panel.innerHTML = `<div class="sr-empty">${esc(ex.message)}</div>`;
+    }
+  }
+
+  $("#global-search").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.value.trim()) runSearch(e.target.value.trim());
+    if (e.key === "Escape") $("#search-results").hidden = true;
+  });
+
+  $("#search-results").addEventListener("click", async (e) => {
+    if (e.target.id === "sr-open" && lastSearch?.stored) {
+      const id = lastSearch.stored.id;
+      $("#search-results").hidden = true;
+      switchTab("indicators");
+      await loadIndicators();
+      const row = $(`.ioc-row[data-id="${id}"]`);
+      if (row) { row.scrollIntoView({ block: "center" }); row.click(); }
+    }
+    if (e.target.id === "sr-add" && lastSearch) {
+      try {
+        await api("/api/indicators", { method: "POST", body: {
+          value: lastSearch.normalized, ioc_type: lastSearch.detected_type,
+          source: "search", severity: "medium",
+        } });
+        await runSearch(lastSearch.query);
+      } catch (ex) {
+        $("#search-results").innerHTML = `<div class="sr-empty">${esc(ex.message)}</div>`;
+      }
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".global-search")) $("#search-results").hidden = true;
   });
 
   /* ── renderers ───────────────────────────────────────── */

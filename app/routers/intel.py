@@ -47,6 +47,19 @@ def create_indicator(body: IndicatorIn, session: Session = Depends(get_session),
     return services.read_indicator(record)
 
 
+@router.get("/search")
+def search(q: str = Query(..., min_length=1, max_length=512),
+           session: Session = Depends(get_session),
+           _: User = Depends(requires(Permission.IOC_READ))):
+    """
+    Universal observable search: classify one pasted value (domain, IP,
+    URL, hash, email, CVE — plus recognize-only formats like phone/UPI/IFSC/
+    crypto/ASN) and say whether it's already stored. No new network calls;
+    reuses the same type detection as ingest.
+    """
+    return services.universal_search(session, q)
+
+
 @router.get("/indicators", response_model=list[IndicatorOut])
 def list_indicators(
     session: Session = Depends(get_session),

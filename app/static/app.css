@@ -42,6 +42,18 @@ textarea{font-family:var(--mono);font-size:12.5px;resize:vertical}
   padding:12px 20px;background:rgba(11,15,20,.92);backdrop-filter:blur(8px);
   border-bottom:1px solid var(--line)}
 .tabs{display:flex;gap:4px;flex:1}
+
+.global-search{position:relative;width:320px;flex:none}
+.global-search input{width:100%;background:var(--panel);border:1px solid var(--line-2);
+  border-radius:8px;padding:7px 11px;font:inherit;font-size:12.5px;color:var(--fg);outline:none}
+.global-search input:focus{border-color:var(--cyan)}
+.search-results{position:absolute;top:calc(100% + 6px);left:0;width:min(480px,90vw);
+  max-height:70vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line-2);
+  border-radius:10px;padding:12px 14px;box-shadow:0 20px 50px rgba(0,0,0,.5);z-index:10}
+.search-results .sr-type{font-family:var(--mono);font-size:10.5px;color:var(--faint);
+  text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.search-results .sr-empty{color:var(--faint);font-size:12.5px}
+.search-results .sr-actions{margin-top:8px;display:flex;gap:8px}
 .tab{background:none;border:0;color:var(--dim);font:inherit;font-weight:600;
   padding:7px 13px;border-radius:8px;cursor:pointer}
 .tab:hover{color:var(--fg);background:var(--panel)}

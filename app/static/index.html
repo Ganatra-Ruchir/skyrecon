@@ -24,6 +24,11 @@
 <div id="app" hidden>
   <header class="topbar">
     <div class="brand"><span class="mark">◆</span> SkyRecon</div>
+    <div class="global-search">
+      <input type="text" id="global-search" autocomplete="off"
+        placeholder="Search domain, IP, URL, hash, email, CVE, phone, UPI, ASN…">
+      <div id="search-results" class="search-results" hidden></div>
+    </div>
     <nav class="tabs" id="tabs">
       <button class="tab on" data-view="overview">Overview</button>
       <button class="tab" data-view="indicators">Indicators</button>

@@ -18,6 +18,8 @@ from app.detect import mitre, rules
 from app.detect.anomaly import AnomalyModel
 from app.ioc import enrich as enrich_mod
 from app.ioc import parser, scoring
+from app.ioc.observable import LABELS as OBSERVABLE_LABELS
+from app.ioc.observable import detect_observable
 from app.models import Alert, DetectionRule, Event, Indicator, IndicatorSnapshot, IOCType, utcnow
 from app.security.crypto import FieldContext, get_vault
 
@@ -117,6 +119,38 @@ def read_indicator(record: Indicator, *, with_enrichment: bool = True) -> dict:
         "first_seen": record.first_seen, "last_seen": record.last_seen,
         "hit_count": record.hit_count, "is_active": record.is_active,
     }
+
+
+def universal_search(session: Session, query: str) -> dict:
+    """
+    Classify one pasted value and, if it's a type SkyRecon actually stores,
+    say whether it's already in the database. Never guesses at types it
+    can't back with real data — an unsupported observable is labeled as
+    such, not silently dropped or faked as a full lookup.
+    """
+    q = (query or "").strip()
+    if not q:
+        return {"query": q, "detected_type": None, "supported": False, "stored": None}
+
+    ioc_type = parser.detect_type(q)
+    if ioc_type is not None:
+        clean = parser.normalize(parser.refang(q), ioc_type)
+        vault = get_vault()
+        index = vault.blind_index(clean, "indicator")
+        existing = session.exec(select(Indicator).where(Indicator.value_index == index)).first()
+        return {
+            "query": q, "detected_type": ioc_type.value, "normalized": clean,
+            "supported": True, "stored": read_indicator(existing) if existing else None,
+        }
+
+    observable = detect_observable(q)
+    if observable:
+        return {
+            "query": q, "detected_type": OBSERVABLE_LABELS[observable], "normalized": q,
+            "supported": False, "stored": None,
+        }
+
+    return {"query": q, "detected_type": None, "normalized": q, "supported": False, "stored": None}
 
 
 def _snapshot_history(session: Session, indicator_id: str) -> dict:
