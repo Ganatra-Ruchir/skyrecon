@@ -164,6 +164,26 @@ class DetectionRule(SQLModel, table=True):
     hit_count: int = 0
 
 
+class IndicatorSnapshot(SQLModel, table=True):
+    """
+    One point-in-time observation of an indicator's live infrastructure,
+    recorded each time a deep-enrich lookup runs. There is no history before
+    this table existed — real passive-DNS backfill needs a paid provider —
+    so "first seen" here means "first seen by this system", not by anyone.
+    """
+
+    __tablename__ = "indicator_snapshots"
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    indicator_id: str = Field(index=True, foreign_key="indicators.id")
+    taken_at: datetime = Field(default_factory=utcnow, index=True)
+    resolved_ips: str = ""       # comma-joined A/AAAA
+    nameservers: str = ""        # comma-joined
+    cert_issuer: str | None = None
+    cert_serial: str | None = None
+    network_org: str | None = None
+
+
 class AuditEntry(SQLModel, table=True):
     """Append-only, hash-chained. Any edit or deletion breaks verification."""
 

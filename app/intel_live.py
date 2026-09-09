@@ -25,10 +25,11 @@ _HOSTNAME_RE = re.compile(
 )
 
 
-def _get_json(url: str):
+def _get_json(url: str, *, extra_headers: dict | None = None):
     try:
-        resp = httpx2.get(url, timeout=_TIMEOUT, follow_redirects=True,
-                           headers={"Accept": "application/json", "User-Agent": "skyrecon-intel/1.0"})
+        headers = {"Accept": "application/json", "User-Agent": "skyrecon-intel/1.0"}
+        headers.update(extra_headers or {})
+        resp = httpx2.get(url, timeout=_TIMEOUT, follow_redirects=True, headers=headers)
         if resp.status_code != 200:
             return None
         return resp.json()
@@ -95,6 +96,44 @@ def rdap_ip(ip: str) -> dict:
     return {k: v for k, v in out.items() if v}
 
 
+_DNS_TYPES = {"A": 1, "NS": 2, "CNAME": 5, "MX": 15, "TXT": 16, "AAAA": 28}
+
+
+def _doh(name: str, rtype: str) -> list[str]:
+    """One record type via Cloudflare's DNS-over-HTTPS JSON API (RFC 8484-ish)."""
+    data = _get_json(f"https://cloudflare-dns.com/dns-query?name={name}&type={rtype}",
+                      extra_headers={"Accept": "application/dns-json"})
+    if not isinstance(data, dict):
+        return []
+    code = _DNS_TYPES[rtype]
+    out = []
+    for ans in data.get("Answer", []) or []:
+        if ans.get("type") == code and ans.get("data"):
+            out.append(ans["data"].strip().strip('"'))
+    return out
+
+
+def dns_records(domain: str) -> dict:
+    """
+    A/AAAA/MX/NS/TXT/CNAME plus SPF and DMARC policy, via a public DNS-over-
+    HTTPS resolver — a standard, non-intrusive lookup (equivalent to what any
+    mail server or browser already does), not a probe of the domain itself.
+    """
+    out = {}
+    for rtype in ("A", "AAAA", "MX", "NS", "CNAME", "TXT"):
+        values = _doh(domain, rtype)
+        if values:
+            out[rtype] = values
+
+    spf = next((t for t in out.get("TXT", []) if t.lower().startswith("v=spf1")), None)
+    dmarc = next((t for t in _doh(f"_dmarc.{domain}", "TXT") if t.lower().startswith("v=dmarc1")), None)
+    if spf:
+        out["SPF"] = spf
+    if dmarc:
+        out["DMARC"] = dmarc
+    return out
+
+
 def _base_domain(host: str) -> str:
     """Last two labels — a heuristic, not public-suffix-list-aware."""
     parts = host.lower().rstrip(".").split(".")
@@ -103,19 +142,20 @@ def _base_domain(host: str) -> str:
 
 def cert_transparency(domain: str) -> dict:
     """
-    Certificate history from public CT logs (crt.sh): issuers, validity span,
-    and any *other* base domain seen sharing a certificate with this one —
-    a strong signal when it shows up (shared/bulletproof hosting, phishing
-    kits reusing infrastructure), unremarkable when it's just subdomains of
-    the same site.
+    Certificate history from public CT logs (crt.sh): the current cert's
+    issuer/validity/serial/SANs, and any *other* base domain seen sharing a
+    certificate with this one. A shared certificate is one correlation
+    signal, not proof of common ownership — every related domain is labeled
+    "strong correlation" rather than "confirmed" for exactly that reason.
     """
     data = _get_json(f"https://crt.sh/?q={domain}&output=json")
     if not isinstance(data, list) or not data:
         return {}
 
     base = _base_domain(domain)
+    rows = data[:500]
     issuers, hosts, not_before, not_after = set(), set(), [], []
-    for row in data[:500]:
+    for row in rows:
         if row.get("issuer_name"):
             issuers.add(row["issuer_name"])
         if row.get("not_before"):
@@ -129,12 +169,21 @@ def cert_transparency(domain: str) -> dict:
                     hosts.add(name)
 
     related = sorted({_base_domain(h) for h in hosts} - {base})
+    latest = max(rows, key=lambda r: r.get("not_before") or "")
 
     out = {
+        "current_cert": {
+            "issuer": latest.get("issuer_name"),
+            "common_name": latest.get("common_name"),
+            "valid_from": latest.get("not_before"),
+            "valid_until": latest.get("not_after"),
+            "serial": latest.get("serial_number"),
+        },
         "cert_issuers": sorted(issuers),
         "cert_first_seen": min(not_before) if not_before else None,
         "cert_last_seen": max(not_after) if not_after else None,
         "cert_count": len(data),
-        "related_domains": related[:25],
+        "related_domains": [{"domain": d, "evidence": "strong correlation (shared certificate)"}
+                             for d in related[:25]],
     }
     return {k: v for k, v in out.items() if v not in (None, [], "")}

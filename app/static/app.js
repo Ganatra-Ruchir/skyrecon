@@ -14,6 +14,10 @@
   // nothing sensitive is left in localStorage for another script to read.
   const auth = { access: null, refresh: null, role: null, email: null };
 
+  // Last-loaded indicator rows, keyed by id, so the click-to-expand panel
+  // can reuse the risk/confidence/signals already on screen.
+  const INDICATORS = {};
+
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -141,29 +145,92 @@
       : `<tr><td class="empty" colspan="3">nothing observed yet</td></tr>`;
   }
 
-  function renderDeepIntel(d) {
+  function domainAge(isoDate) {
+    if (!isoDate) return null;
+    const days = Math.floor((Date.now() - new Date(isoDate).getTime()) / 86400000);
+    if (!Number.isFinite(days) || days < 0) return null;
+    if (days < 60) return `${days} days`;
+    return `${Math.floor(days / 365)}y ${Math.floor((days % 365) / 30)}m`;
+  }
+
+  function intelSection(title, rows) {
+    const items = rows.filter(([, v]) => v !== null && v !== undefined && v !== "");
+    if (!items.length) return "";
+    return `<div class="intel-sec"><h4>${esc(title)}</h4>
+      <dl class="intel-dl">${items.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl></div>`;
+  }
+
+  function renderDeepIntel(indicator, d) {
     const rdap = d?.rdap || {};
+    const dns = d?.dns || {};
     const cert = d?.certificates || {};
-    const rows = [
-      ["Registrar", rdap.registrar],
-      ["Registered", rdap.registered],
-      ["Expires", rdap.expires],
-      ["Nameservers", rdap.nameservers?.join(", ")],
-      ["Network org", rdap.network_org],
-      ["Network", rdap.network_name],
-      ["ASN", rdap.asn],
-      ["RDAP country", rdap.country],
-      ["Cert issuers", cert.cert_issuers?.join(", ")],
-      ["First cert seen", cert.cert_first_seen],
-      ["Related domains", cert.related_domains?.join(", ")],
-    ].filter(([, v]) => v);
-    if (!rows.length) return `<div class="mini-empty">No registry or certificate data found for this indicator.</div>`;
-    return `<dl class="intel-dl">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(String(v))}</dd>`).join("")}</dl>`;
+    const history = d?.history || {};
+    const sig = indicator.enrichment?.signals || {};
+    const cur = cert.current_cert || {};
+
+    const overview = intelSection("Overview", [
+      ["Status", indicator.is_active ? "ACTIVE" : "RETIRED"],
+      ["Risk", indicator.risk_score != null
+        ? `${indicator.risk_score}/100 · ${esc((indicator.severity || "").toUpperCase())}` : null],
+      ["Confidence", indicator.effective_confidence != null ? `${indicator.effective_confidence}/100` : null],
+      ["Domain age", domainAge(rdap.registered)],
+      ["Last checked", "just now"],
+    ]);
+
+    const infra = intelSection("Infrastructure", [
+      ["Registrar", esc(rdap.registrar)],
+      ["Nameservers", esc((rdap.nameservers || dns.NS || []).join(", "))],
+      ["Current IP", esc((dns.A || []).concat(dns.AAAA || []).join(", ") || sig.reverse_pointer)],
+      ["ASN", esc(sig.asn)],
+      ["Hosting provider", esc(sig.asn_org || rdap.network_org)],
+      ["Network", esc(rdap.network_range)],
+      ["Country", esc(sig.geo_country)],
+    ]);
+
+    const dnsRows = intelSection("DNS", [
+      ["A", esc((dns.A || []).join(", "))],
+      ["AAAA", esc((dns.AAAA || []).join(", "))],
+      ["MX", esc((dns.MX || []).join(", "))],
+      ["NS", esc((dns.NS || []).join(", "))],
+      ["CNAME", esc((dns.CNAME || []).join(", "))],
+      ["SPF", esc(dns.SPF)],
+      ["DMARC", esc(dns.DMARC)],
+    ]);
+
+    const related = (cert.related_domains || [])
+      .map((r) => `<div class="rel-row"><span>${esc(r.domain)}</span><span class="pill ev">${esc(r.evidence)}</span></div>`)
+      .join("");
+    const tls = intelSection("TLS / Certificate", [
+      ["Issuer", esc(cur.issuer)],
+      ["Valid from", esc(cur.valid_from)],
+      ["Valid until", esc(cur.valid_until)],
+      ["Serial", esc(cur.serial)],
+      ["Related domains", related ? `<div class="rel-list">${related}</div>` : ""],
+    ]);
+
+    const hist = intelSection("History (observed by SkyRecon since)", [
+      ["First observed", esc(history.since)],
+      ["Observations", esc(history.observations)],
+      ["Distinct IPs", esc(history.distinct_ips?.length)],
+      ["Distinct nameservers", esc(history.distinct_nameservers?.length)],
+      ["Distinct certificates", esc(history.distinct_certs?.length)],
+    ]);
+
+    const sources = [
+      ["RDAP", !!Object.keys(rdap).length], ["DNS", !!Object.keys(dns).length],
+      ["crt.sh", !!Object.keys(cert).length],
+    ].map(([name, ok]) => `<span class="pill ${ok ? "src-ok" : "src-no"}">${ok ? "✓" : "✗"} ${name}</span>`).join(" ");
+    const evidence = `<div class="intel-sec"><h4>Evidence</h4><div class="src-row">${sources}</div>
+      <div class="mini-empty">Case management, watchlists and the relationship graph are not built yet.</div></div>`;
+
+    const body = [overview, infra, dnsRows, tls, hist, evidence].join("");
+    return body || `<div class="mini-empty">No registry, DNS or certificate data found for this indicator.</div>`;
   }
 
   async function loadIndicators() {
     const type = $("#filter-type").value;
     const rows = await api(`/api/indicators?limit=200${type ? `&ioc_type=${type}` : ""}`);
+    rows.forEach((i) => { INDICATORS[i.id] = i; });
     $("#ioc-table tbody").innerHTML = rows.length ? rows.map((i) => {
       const why = (i.enrichment?.reasons || []).slice(0, 2).join("; ");
       const sig = i.enrichment?.signals || {};
@@ -195,7 +262,7 @@
       cell.innerHTML = `<div class="mini-loading">Querying public registries and certificate logs…</div>`;
       try {
         const data = await api(`/api/indicators/${id}/deep-enrich`, { method: "POST" });
-        cell.innerHTML = renderDeepIntel(data);
+        cell.innerHTML = renderDeepIntel(INDICATORS[id] || {}, data);
         cell.dataset.loaded = "1";
       } catch (err) {
         cell.innerHTML = `<div class="mini-empty">Lookup failed: ${esc(err.message)}</div>`;

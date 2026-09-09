@@ -104,6 +104,19 @@ main{padding:20px;display:grid;gap:16px;max-width:1400px;margin:0 auto}
 .intel-dl dd{margin:0;color:var(--fg);word-break:break-word}
 .mini-empty,.mini-loading{color:var(--faint);font-size:12.5px}
 
+.intel-sec{margin-bottom:14px}
+.intel-sec:last-child{margin-bottom:0}
+.intel-sec h4{margin:0 0 6px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--faint);border-bottom:1px solid var(--line);padding-bottom:4px}
+.rel-list{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.rel-row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:4px 8px;background:rgba(148,183,222,.05);border-radius:6px;font-size:12px}
+.pill.ev{text-transform:none;font-size:9.5px;color:var(--amber);border-color:rgba(251,191,36,.35);
+  background:rgba(251,191,36,.08)}
+.src-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.pill.src-ok{color:var(--green);border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.08);text-transform:none}
+.pill.src-no{color:var(--faint);border-color:var(--line);background:transparent;text-transform:none}
+
 /* ── alerts ─────────────────────────────────────────────── */
 .alerts{display:grid;gap:10px}
 .alert{border:1px solid var(--line);border-left:3px solid var(--line-2);border-radius:10px;

@@ -18,7 +18,7 @@ from app.detect import mitre, rules
 from app.detect.anomaly import AnomalyModel
 from app.ioc import enrich as enrich_mod
 from app.ioc import parser, scoring
-from app.models import Alert, DetectionRule, Event, Indicator, IOCType, utcnow
+from app.models import Alert, DetectionRule, Event, Indicator, IndicatorSnapshot, IOCType, utcnow
 from app.security.crypto import FieldContext, get_vault
 
 # One model per process, refit as telemetry accumulates.
@@ -119,12 +119,33 @@ def read_indicator(record: Indicator, *, with_enrichment: bool = True) -> dict:
     }
 
 
+def _snapshot_history(session: Session, indicator_id: str) -> dict:
+    """Distinct values seen across every deep-enrich snapshot so far — the
+    only "history" honestly available without a paid passive-DNS provider:
+    it starts the day this feature shipped, not before."""
+    past = session.exec(
+        select(IndicatorSnapshot)
+        .where(IndicatorSnapshot.indicator_id == indicator_id)
+        .order_by(col(IndicatorSnapshot.taken_at))
+    ).all()
+    return {
+        "observations": len(past),
+        "since": past[0].taken_at if past else None,
+        "distinct_ips": sorted({ip for s in past for ip in s.resolved_ips.split(",") if ip}),
+        "distinct_nameservers": sorted({ns for s in past for ns in s.nameservers.split(",") if ns}),
+        "distinct_certs": sorted({f"{s.cert_issuer} (#{s.cert_serial})" for s in past
+                                   if s.cert_issuer}),
+    }
+
+
 def deep_enrich_indicator(session: Session, record: Indicator, *, actor_id: str | None = None) -> dict:
     """
-    Live, passive lookups (RDAP + certificate transparency) for one indicator.
+    Live, passive lookups (RDAP, DNS, certificate transparency) for one
+    indicator, plus the infrastructure history this system has itself
+    observed across past calls.
 
     Unlike read_indicator's enrichment, this leaves the network — every call
-    goes to a public registry or log, never to the indicator's own
+    goes to a public registry, resolver or log, never to the indicator's own
     infrastructure. Audited so there is a record of when the system reached
     out about a specific indicator.
     """
@@ -132,23 +153,39 @@ def deep_enrich_indicator(session: Session, record: Indicator, *, actor_id: str 
     value = vault.open(record.value_sealed, FieldContext("indicators", "value", record.id))
     ioc_type = IOCType(record.ioc_type)
 
-    out: dict = {}
     if not value:
-        return out
+        return {}
+
+    out: dict = {}
+    snap = IndicatorSnapshot(indicator_id=record.id)
 
     if ioc_type in {IOCType.IPV4, IOCType.IPV6}:
-        out["rdap"] = intel_live.rdap_ip(value)
-    elif ioc_type is IOCType.DOMAIN:
-        out["rdap"] = intel_live.rdap_domain(value)
-        out["certificates"] = intel_live.cert_transparency(value)
-    elif ioc_type is IOCType.URL:
-        host = value.lower().split("://", 1)[-1].split("/")[0].split(":")[0]
+        rdap = intel_live.rdap_ip(value)
+        out["rdap"] = rdap
+        snap.resolved_ips = value
+        snap.network_org = rdap.get("network_org")
+    elif ioc_type in {IOCType.DOMAIN, IOCType.URL, IOCType.EMAIL}:
+        if ioc_type is IOCType.URL:
+            host = value.lower().split("://", 1)[-1].split("/")[0].split(":")[0]
+        elif ioc_type is IOCType.EMAIL:
+            host = value.split("@")[-1]
+        else:
+            host = value
         out["rdap"] = intel_live.rdap_domain(host)
+        out["dns"] = intel_live.dns_records(host)
         out["certificates"] = intel_live.cert_transparency(host)
-    elif ioc_type is IOCType.EMAIL:
-        out["rdap"] = intel_live.rdap_domain(value.split("@")[-1])
+        snap.resolved_ips = ",".join(out["dns"].get("A", []) + out["dns"].get("AAAA", []))
+        snap.nameservers = ",".join(out["rdap"].get("nameservers") or out["dns"].get("NS", []))
+        current_cert = out["certificates"].get("current_cert") or {}
+        snap.cert_issuer = current_cert.get("issuer")
+        snap.cert_serial = current_cert.get("serial")
 
     out = {k: v for k, v in out.items() if v}
+    if snap.resolved_ips or snap.nameservers or snap.cert_issuer:
+        session.add(snap)
+        session.commit()
+    out["history"] = _snapshot_history(session, record.id)
+
     audit.record(session, action="ioc.deep_enrich", actor_id=actor_id, target=record.id,
                  detail={"ioc_type": ioc_type.value, "found": list(out.keys())})
     return out
