@@ -14,3 +14,6 @@ pyotp==2.10.0
 
 # HTTP client: used by seed.py and by starlette's TestClient
 httpx2==2.12.0
+
+# Offline IP geolocation — reads a local .mmdb file, never calls out
+maxminddb==3.1.1

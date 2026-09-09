@@ -42,11 +42,32 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     SKYRECON_ENV=production \
     SKYRECON_DATABASE_URL=sqlite:////data/skyrecon.db
 
-# curl is the healthcheck; nothing else is added to the runtime image.
+# curl is the healthcheck and the GeoIP fetch below; gzip unpacks it.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends curl \
+ && apt-get install -y --no-install-recommends curl gzip \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --create-home --uid 10001 --shell /usr/sbin/nologin skyrecon
+
+# ── GeoIP database ───────────────────────────────────────────────────────
+# DB-IP City Lite (CC BY 4.0, https://db-ip.com/db/lite.php) — no API key, no
+# signup, fetched once here so app/geoip.py never touches the network at
+# runtime. Tries this month then the two before it, since a new file is only
+# published a few days into each month. Failure is non-fatal: the image still
+# builds and enrichment just runs without geolocation.
+RUN mkdir -p /srv/geoip \
+ && ( for i in 0 1 2; do \
+        m=$(date -d "-$i month" +%Y-%m); \
+        url="https://download.db-ip.com/free/dbip-city-lite-$m.mmdb.gz"; \
+        echo "GeoIP: trying $url"; \
+        if curl -fsSL "$url" -o /tmp/geoip.mmdb.gz; then break; fi; \
+      done; \
+      if [ -f /tmp/geoip.mmdb.gz ]; then \
+        gunzip -c /tmp/geoip.mmdb.gz > /srv/geoip/dbip-city-lite.mmdb \
+        && rm /tmp/geoip.mmdb.gz \
+        && echo "GeoIP: database installed"; \
+      else \
+        echo "GeoIP: download failed, continuing without geolocation"; \
+      fi )
 
 WORKDIR /srv
 

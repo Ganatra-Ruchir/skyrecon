@@ -146,6 +146,9 @@
     const rows = await api(`/api/indicators?limit=200${type ? `&ioc_type=${type}` : ""}`);
     $("#ioc-table tbody").innerHTML = rows.length ? rows.map((i) => {
       const why = (i.enrichment?.reasons || []).slice(0, 2).join("; ");
+      const sig = i.enrichment?.signals || {};
+      const location = [sig.geo_city, sig.geo_region, sig.geo_country_code]
+        .filter(Boolean).join(", ");
       return `<tr>
         <td class="ioc">${esc(i.defanged)}</td>
         <td><span class="pill">${esc(i.ioc_type)}</span></td>
@@ -153,8 +156,9 @@
         <td class="mono">${i.effective_confidence}</td>
         <td class="mono">${i.risk_score}</td>
         <td class="mono">${i.hit_count}</td>
+        <td>${esc(location) || "—"}</td>
         <td class="why">${esc(why) || "—"}</td></tr>`;
-    }).join("") : `<tr><td class="empty" colspan="7">no indicators stored yet</td></tr>`;
+    }).join("") : `<tr><td class="empty" colspan="8">no indicators stored yet</td></tr>`;
   }
 
   const LABEL = {
