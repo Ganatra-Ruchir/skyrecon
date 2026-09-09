@@ -80,6 +80,22 @@ def get_indicator(indicator_id: str, session: Session = Depends(get_session),
     return services.read_indicator(record)
 
 
+@router.post("/indicators/{indicator_id}/deep-enrich")
+def deep_enrich(indicator_id: str, session: Session = Depends(get_session),
+                user: User = Depends(requires(Permission.IOC_READ))):
+    """
+    Live, passive lookups (RDAP + certificate transparency) for one
+    indicator. Unlike every other read in this router, this leaves the
+    network — each call fetches a public registry or CT log, not the
+    indicator's own infrastructure. Fetch on demand only; never wired into
+    bulk ingest or list views.
+    """
+    record = session.get(Indicator, indicator_id)
+    if record is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "indicator not found")
+    return services.deep_enrich_indicator(session, record, actor_id=user.id)
+
+
 @router.delete("/indicators/{indicator_id}", status_code=status.HTTP_204_NO_CONTENT)
 def retire_indicator(indicator_id: str, session: Session = Depends(get_session),
                      user: User = Depends(requires(Permission.IOC_DELETE))):

@@ -48,26 +48,26 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --create-home --uid 10001 --shell /usr/sbin/nologin skyrecon
 
-# ── GeoIP database ───────────────────────────────────────────────────────
-# DB-IP City Lite (CC BY 4.0, https://db-ip.com/db/lite.php) — no API key, no
-# signup, fetched once here so app/geoip.py never touches the network at
-# runtime. Tries this month then the two before it, since a new file is only
-# published a few days into each month. Failure is non-fatal: the image still
-# builds and enrichment just runs without geolocation.
+# ── GeoIP / ASN databases ────────────────────────────────────────────────
+# DB-IP City Lite + ASN Lite (CC BY 4.0, https://db-ip.com/db/lite.php) — no
+# API key, no signup, fetched once here so app/geoip.py never touches the
+# network at runtime. Tries this month then the two before it, since a new
+# file is only published a few days into each month. Failure is non-fatal:
+# the image still builds and enrichment just runs without that field.
 RUN mkdir -p /srv/geoip \
- && ( for i in 0 1 2; do \
-        m=$(date -d "-$i month" +%Y-%m); \
-        url="https://download.db-ip.com/free/dbip-city-lite-$m.mmdb.gz"; \
-        echo "GeoIP: trying $url"; \
-        if curl -fsSL "$url" -o /tmp/geoip.mmdb.gz; then break; fi; \
-      done; \
-      if [ -f /tmp/geoip.mmdb.gz ]; then \
-        gunzip -c /tmp/geoip.mmdb.gz > /srv/geoip/dbip-city-lite.mmdb \
-        && rm /tmp/geoip.mmdb.gz \
-        && echo "GeoIP: database installed"; \
-      else \
-        echo "GeoIP: download failed, continuing without geolocation"; \
-      fi )
+ && ( fetch() { \
+        for i in 0 1 2; do \
+          m=$(date -d "-$i month" +%Y-%m); \
+          url="https://download.db-ip.com/free/dbip-$1-lite-$m.mmdb.gz"; \
+          echo "GeoIP: trying $url"; \
+          if curl -fsSL "$url" -o "/tmp/$1.mmdb.gz"; then \
+            gunzip -c "/tmp/$1.mmdb.gz" > "/srv/geoip/dbip-$1-lite.mmdb" \
+            && rm "/tmp/$1.mmdb.gz" && echo "GeoIP: $1 database installed" && return 0; \
+          fi; \
+        done; \
+        echo "GeoIP: $1 download failed, continuing without it"; \
+      }; \
+      fetch city; fetch asn )
 
 WORKDIR /srv
 

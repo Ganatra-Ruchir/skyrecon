@@ -14,7 +14,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 
-from app.geoip import geo_facts
+from app.geoip import asn_facts, geo_facts
 from app.models import IOCType
 
 # Registrars and TLDs disproportionately represented in abuse reporting.
@@ -122,6 +122,7 @@ def enrich(value: str, ioc_type: IOCType) -> Enrichment:
             out.reasons.append("address is not globally routable")
         elif facts.get("is_global"):
             out.signals.update(geo_facts(value))
+            out.signals.update(asn_facts(value))
 
     host = ""
     if ioc_type is IOCType.DOMAIN:

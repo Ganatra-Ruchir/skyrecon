@@ -96,6 +96,14 @@ main{padding:20px;display:grid;gap:16px;max-width:1400px;margin:0 auto}
 .sev-info{color:var(--dim)}
 .why{color:var(--dim);font-size:12px;max-width:340px}
 
+/* ── deep-enrich detail row ─────────────────────────────── */
+.ioc-row{cursor:pointer}
+.ioc-detail td{background:var(--panel-2);padding:12px 16px}
+.intel-dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:0;font-size:12.5px}
+.intel-dl dt{color:var(--faint);font-weight:600}
+.intel-dl dd{margin:0;color:var(--fg);word-break:break-word}
+.mini-empty,.mini-loading{color:var(--faint);font-size:12.5px}
+
 /* ── alerts ─────────────────────────────────────────────── */
 .alerts{display:grid;gap:10px}
 .alert{border:1px solid var(--line);border-left:3px solid var(--line-2);border-radius:10px;

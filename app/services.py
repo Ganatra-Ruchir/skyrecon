@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session, col, select
 
-from app import audit
+from app import audit, intel_live
 from app.config import get_settings
 from app.detect import mitre, rules
 from app.detect.anomaly import AnomalyModel
@@ -117,6 +117,41 @@ def read_indicator(record: Indicator, *, with_enrichment: bool = True) -> dict:
         "first_seen": record.first_seen, "last_seen": record.last_seen,
         "hit_count": record.hit_count, "is_active": record.is_active,
     }
+
+
+def deep_enrich_indicator(session: Session, record: Indicator, *, actor_id: str | None = None) -> dict:
+    """
+    Live, passive lookups (RDAP + certificate transparency) for one indicator.
+
+    Unlike read_indicator's enrichment, this leaves the network — every call
+    goes to a public registry or log, never to the indicator's own
+    infrastructure. Audited so there is a record of when the system reached
+    out about a specific indicator.
+    """
+    vault = get_vault()
+    value = vault.open(record.value_sealed, FieldContext("indicators", "value", record.id))
+    ioc_type = IOCType(record.ioc_type)
+
+    out: dict = {}
+    if not value:
+        return out
+
+    if ioc_type in {IOCType.IPV4, IOCType.IPV6}:
+        out["rdap"] = intel_live.rdap_ip(value)
+    elif ioc_type is IOCType.DOMAIN:
+        out["rdap"] = intel_live.rdap_domain(value)
+        out["certificates"] = intel_live.cert_transparency(value)
+    elif ioc_type is IOCType.URL:
+        host = value.lower().split("://", 1)[-1].split("/")[0].split(":")[0]
+        out["rdap"] = intel_live.rdap_domain(host)
+        out["certificates"] = intel_live.cert_transparency(host)
+    elif ioc_type is IOCType.EMAIL:
+        out["rdap"] = intel_live.rdap_domain(value.split("@")[-1])
+
+    out = {k: v for k, v in out.items() if v}
+    audit.record(session, action="ioc.deep_enrich", actor_id=actor_id, target=record.id,
+                 detail={"ioc_type": ioc_type.value, "found": list(out.keys())})
+    return out
 
 
 def bulk_ingest(

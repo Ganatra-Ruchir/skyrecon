@@ -141,6 +141,26 @@
       : `<tr><td class="empty" colspan="3">nothing observed yet</td></tr>`;
   }
 
+  function renderDeepIntel(d) {
+    const rdap = d?.rdap || {};
+    const cert = d?.certificates || {};
+    const rows = [
+      ["Registrar", rdap.registrar],
+      ["Registered", rdap.registered],
+      ["Expires", rdap.expires],
+      ["Nameservers", rdap.nameservers?.join(", ")],
+      ["Network org", rdap.network_org],
+      ["Network", rdap.network_name],
+      ["ASN", rdap.asn],
+      ["RDAP country", rdap.country],
+      ["Cert issuers", cert.cert_issuers?.join(", ")],
+      ["First cert seen", cert.cert_first_seen],
+      ["Related domains", cert.related_domains?.join(", ")],
+    ].filter(([, v]) => v);
+    if (!rows.length) return `<div class="mini-empty">No registry or certificate data found for this indicator.</div>`;
+    return `<dl class="intel-dl">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(String(v))}</dd>`).join("")}</dl>`;
+  }
+
   async function loadIndicators() {
     const type = $("#filter-type").value;
     const rows = await api(`/api/indicators?limit=200${type ? `&ioc_type=${type}` : ""}`);
@@ -149,7 +169,7 @@
       const sig = i.enrichment?.signals || {};
       const location = [sig.geo_city, sig.geo_region, sig.geo_country_code]
         .filter(Boolean).join(", ");
-      return `<tr>
+      return `<tr class="ioc-row" data-id="${esc(i.id)}">
         <td class="ioc">${esc(i.defanged)}</td>
         <td><span class="pill">${esc(i.ioc_type)}</span></td>
         <td><span class="pill sev-${esc(i.severity)}">${esc(i.severity)}</span></td>
@@ -157,9 +177,31 @@
         <td class="mono">${i.risk_score}</td>
         <td class="mono">${i.hit_count}</td>
         <td>${esc(location) || "—"}</td>
-        <td class="why">${esc(why) || "—"}</td></tr>`;
+        <td class="why">${esc(why) || "—"}</td></tr>
+      <tr class="ioc-detail" data-for="${esc(i.id)}" hidden><td colspan="8"></td></tr>`;
     }).join("") : `<tr><td class="empty" colspan="8">no indicators stored yet</td></tr>`;
   }
+
+  $("#ioc-table tbody").addEventListener("click", async (e) => {
+    const row = e.target.closest(".ioc-row");
+    if (!row) return;
+    const id = row.dataset.id;
+    const detail = $(`.ioc-detail[data-for="${id}"]`);
+    if (!detail) return;
+    if (!detail.hidden) { detail.hidden = true; return; }
+    detail.hidden = false;
+    const cell = detail.querySelector("td");
+    if (!cell.dataset.loaded) {
+      cell.innerHTML = `<div class="mini-loading">Querying public registries and certificate logs…</div>`;
+      try {
+        const data = await api(`/api/indicators/${id}/deep-enrich`, { method: "POST" });
+        cell.innerHTML = renderDeepIntel(data);
+        cell.dataset.loaded = "1";
+      } catch (err) {
+        cell.innerHTML = `<div class="mini-empty">Lookup failed: ${esc(err.message)}</div>`;
+      }
+    }
+  });
 
   const LABEL = {
     rule: "Rule", description: "Why it fired", indicator: "Indicator",

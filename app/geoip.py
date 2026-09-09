@@ -15,23 +15,31 @@ import threading
 
 import maxminddb
 
-_DB_PATH = os.environ.get("SKYRECON_GEOIP_DB", "/srv/geoip/dbip-city-lite.mmdb")
+_CITY_DB_PATH = os.environ.get("SKYRECON_GEOIP_DB", "/srv/geoip/dbip-city-lite.mmdb")
+_ASN_DB_PATH = os.environ.get("SKYRECON_ASN_DB", "/srv/geoip/dbip-asn-lite.mmdb")
 _lock = threading.Lock()
-_reader: maxminddb.Reader | None = None
-_load_attempted = False
+_readers: dict[str, maxminddb.Reader | None] = {}
+_load_attempted: set[str] = set()
+
+
+def _open(path: str) -> maxminddb.Reader | None:
+    if path in _readers or path in _load_attempted:
+        return _readers.get(path)
+    with _lock:
+        if path in _load_attempted:
+            return _readers.get(path)
+        _load_attempted.add(path)
+        if os.path.isfile(path):
+            _readers[path] = maxminddb.open_database(path)
+    return _readers.get(path)
 
 
 def _get_reader() -> maxminddb.Reader | None:
-    global _reader, _load_attempted
-    if _reader is not None or _load_attempted:
-        return _reader
-    with _lock:
-        if _load_attempted:
-            return _reader
-        _load_attempted = True
-        if os.path.isfile(_DB_PATH):
-            _reader = maxminddb.open_database(_DB_PATH)
-    return _reader
+    return _open(_CITY_DB_PATH)
+
+
+def _get_asn_reader() -> maxminddb.Reader | None:
+    return _open(_ASN_DB_PATH)
 
 
 def geo_facts(ip: str) -> dict:
@@ -58,5 +66,26 @@ def geo_facts(ip: str) -> dict:
         "geo_city": (city.get("names") or {}).get("en"),
         "geo_lat": location.get("latitude"),
         "geo_lon": location.get("longitude"),
+    }
+    return {k: v for k, v in out.items() if v is not None}
+
+
+def asn_facts(ip: str) -> dict:
+    """Autonomous system number & org (hosting provider/ISP) for a public IP."""
+    reader = _get_asn_reader()
+    if reader is None:
+        return {}
+    try:
+        record = reader.get(ip)
+    except ValueError:
+        return {}
+    if not isinstance(record, dict):
+        return {}
+
+    number = record.get("autonomous_system_number")
+    org = record.get("autonomous_system_organization")
+    out = {
+        "asn": f"AS{number}" if number is not None else None,
+        "asn_org": org,
     }
     return {k: v for k, v in out.items() if v is not None}
