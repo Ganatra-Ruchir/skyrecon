@@ -1,0 +1,283 @@
+"""
+SkyRecon — passwordless email sign-in (OTP), FastAPI router.
+
+Drop this next to your existing app and include the router:
+
+    from auth_otp import router as auth_router
+    app.include_router(auth_router)
+
+It backs the two screens in the console: "Send sign-in code" and the 6-digit
+verification step. Everything the UI does is already implemented here — issue,
+rate-limit, expire, verify once, lock out, audit.
+
+WHY EMAIL ONLY
+--------------
+Phone/SMS is deliberately not implemented. Every SMS gateway (Twilio, Vonage,
+MSG91, AWS SNS) charges per message; the "free" tiers are trial credits that
+expire, so a phone-OTP path would break the moment the trial ran out. Email
+OTP is genuinely free at the volumes this needs:
+
+    Brevo    300 emails/day free, forever   smtp-relay.brevo.com:587
+    Resend   3,000/month free               smtp.resend.com:587
+    Gmail    ~500/day, needs an App Password smtp.gmail.com:587
+    Mailtrap free sandbox for local dev      sandbox.smtp.mailtrap.io:2525
+
+Set SMTP_HOST/PORT/USER/PASS for whichever you pick. With SMTP_HOST unset the
+code is logged to stdout instead of sent, which is how you develop locally.
+
+SECURITY NOTES
+--------------
+* The code is never stored. Only SHA-256(pepper || code) goes in the database,
+  and it is compared in constant time.
+* The email address is never stored in the clear either — it is looked up by
+  the same keyed blind index the rest of the schema uses.
+* 3 codes per address per 15 minutes; 5 wrong guesses burns the code.
+* Codes are single-use and expire in 10 minutes.
+* Sign-in never reveals whether an address exists — the response is identical
+  either way. Only a real, enabled user actually receives mail.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import logging
+import os
+import secrets
+import smtplib
+from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, EmailStr, Field
+from sqlmodel import Session, text
+
+# your existing helpers
+from .db import get_session          # -> Session
+from .security import (              # -> the primitives the rest of SkyRecon uses
+    blind_index,                     #    keyed HMAC-SHA256, hex digest
+    issue_access_token,              #    short-lived JWT
+    issue_refresh_token,             #    rotating refresh token
+    write_audit,                     #    appends a hash-chained audit row
+)
+
+log = logging.getLogger("skyrecon.auth")
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+CODE_TTL_MIN = 10
+MAX_ATTEMPTS = 5
+RATE_WINDOW_MIN = 15
+RATE_MAX_CODES = 3
+
+OTP_PEPPER = os.environ["SKYRECON_OTP_PEPPER"]      # 32+ random bytes, env only
+SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+MAIL_FROM = os.getenv("SKYRECON_MAIL_FROM", "SkyRecon <no-reply@skyrecon.local>")
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _hash_code(code: str) -> str:
+    return hashlib.sha256((OTP_PEPPER + code).encode()).hexdigest()
+
+
+def _new_code() -> str:
+    """Six digits, uniformly distributed, from a CSPRNG."""
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _client_ip(request: Request) -> str | None:
+    fwd = request.headers.get("x-forwarded-for")
+    return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else None)
+
+
+def _log_attempt(db: Session, target_bidx: str, ip: str | None, outcome: str, ua: str | None = None) -> None:
+    db.execute(
+        text("""INSERT INTO login_attempts (target_bidx, ip, outcome, user_agent)
+                VALUES (:t, :ip, :o, :ua)"""),
+        {"t": target_bidx, "ip": ip, "o": outcome, "ua": (ua or "")[:255]},
+    )
+
+
+def _send_code(to_addr: str, code: str) -> None:
+    """Deliver the code. With no SMTP configured this logs it (dev mode)."""
+    if not SMTP_HOST:
+        log.warning("SMTP not configured — sign-in code for %s is %s", to_addr, code)
+        return
+
+    msg = EmailMessage()
+    msg["Subject"] = f"{code} is your SkyRecon sign-in code"
+    msg["From"] = MAIL_FROM
+    msg["To"] = to_addr
+    msg.set_content(
+        f"Your SkyRecon sign-in code is {code}\n\n"
+        f"It expires in {CODE_TTL_MIN} minutes and can be used once.\n"
+        "If you didn't request it, someone has your email address but not your account — "
+        "no action is needed, but tell your administrator.\n"
+    )
+    msg.add_alternative(
+        f"""<div style="font-family:system-ui,sans-serif;background:#080607;color:#f2e9e5;padding:32px">
+  <div style="max-width:420px;margin:auto;background:#100c0d;border:1px solid #2d2220;border-radius:12px;padding:26px">
+    <div style="font-weight:800;letter-spacing:.06em;color:#ff7a18">SKYRECON</div>
+    <p style="color:#a3908a;font-size:14px">Enter this code to finish signing in to the operations console.</p>
+    <div style="font-family:ui-monospace,monospace;font-size:34px;letter-spacing:.32em;color:#ffc247;
+                background:#0d0a0b;border:1px dashed #47332c;border-radius:10px;padding:16px;text-align:center">{code}</div>
+    <p style="color:#7a635c;font-size:12px">Expires in {CODE_TTL_MIN} minutes · single use ·
+       {MAX_ATTEMPTS} incorrect attempts invalidates it.</p>
+  </div>
+</div>""",
+        subtype="html",
+    )
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
+        s.starttls()
+        if SMTP_USER:
+            s.login(SMTP_USER, SMTP_PASS or "")
+        s.send_message(msg)
+
+
+# ── schemas ──────────────────────────────────────────────────────────────────
+class CodeRequest(BaseModel):
+    email: EmailStr
+
+
+class CodeVerify(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+GENERIC_OK = {"sent": True, "expires_in": CODE_TTL_MIN * 60}
+
+
+# ── endpoints ────────────────────────────────────────────────────────────────
+@router.post("/request-code")
+def request_code(body: CodeRequest, request: Request, db: Session = Depends(get_session)):
+    """Issue a sign-in code. The response is identical for unknown addresses."""
+    target = body.email.strip().lower()
+    tb = blind_index(target)
+    ip = _client_ip(request)
+
+    recent = db.execute(
+        text("""SELECT COUNT(*) FROM login_attempts
+                WHERE target_bidx = :t AND outcome = 'code_sent'
+                  AND created_at >= NOW() - INTERVAL :w MINUTE"""),
+        {"t": tb, "w": RATE_WINDOW_MIN},
+    ).scalar_one()
+    if recent >= RATE_MAX_CODES:
+        _log_attempt(db, tb, ip, "rate_limited")
+        db.commit()
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                            f"Too many codes requested. Try again in {RATE_WINDOW_MIN} minutes.")
+
+    user = db.execute(
+        text("""SELECT id, display_name FROM users
+                WHERE email_bidx = :t AND disabled_at IS NULL
+                  AND (locked_until IS NULL OR locked_until < NOW())"""),
+        {"t": tb},
+    ).first()
+
+    if user:
+        code = _new_code()
+        db.execute(
+            text("""INSERT INTO login_codes
+                      (channel, target_bidx, code_hash, purpose, max_attempts, expires_at, request_ip)
+                    VALUES ('email', :t, :h, 'signin', :m, NOW() + INTERVAL :ttl MINUTE, :ip)"""),
+            {"t": tb, "h": _hash_code(code), "m": MAX_ATTEMPTS, "ttl": CODE_TTL_MIN, "ip": ip},
+        )
+        _log_attempt(db, tb, ip, "code_sent", request.headers.get("user-agent"))
+        db.commit()
+        try:
+            _send_code(target, code)
+        except Exception:                       # delivery failure must not leak account existence
+            log.exception("failed to send sign-in code")
+    else:
+        _log_attempt(db, tb, ip, "code_sent")   # same audit shape, no code issued
+        db.commit()
+
+    return GENERIC_OK
+
+
+@router.post("/verify-code")
+def verify_code(body: CodeVerify, request: Request, db: Session = Depends(get_session)):
+    """Verify a code and start a session."""
+    target = body.email.strip().lower()
+    tb = blind_index(target)
+    ip = _client_ip(request)
+
+    row = db.execute(
+        text("""SELECT id, code_hash, attempts, max_attempts FROM login_codes
+                WHERE target_bidx = :t AND purpose = 'signin'
+                  AND consumed_at IS NULL AND expires_at > NOW()
+                ORDER BY id DESC LIMIT 1"""),
+        {"t": tb},
+    ).first()
+
+    if row is None:
+        _log_attempt(db, tb, ip, "code_expired")
+        db.commit()
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That code has expired. Request a new one.")
+
+    code_id, code_hash, attempts, max_attempts = row
+
+    if not hmac.compare_digest(code_hash, _hash_code(body.code)):
+        attempts += 1
+        db.execute(text("UPDATE login_codes SET attempts = :a WHERE id = :i"), {"a": attempts, "i": code_id})
+        if attempts >= max_attempts:
+            db.execute(text("UPDATE login_codes SET consumed_at = NOW() WHERE id = :i"), {"i": code_id})
+            db.execute(
+                text("UPDATE users SET locked_until = NOW() + INTERVAL 15 MINUTE WHERE email_bidx = :t"),
+                {"t": tb},
+            )
+            _log_attempt(db, tb, ip, "locked")
+            db.commit()
+            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                                "Too many incorrect codes. This address is locked for 15 minutes.")
+        _log_attempt(db, tb, ip, "code_bad")
+        db.commit()
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            f"Incorrect code. {max_attempts - attempts} attempts left.")
+
+    user = db.execute(
+        text("""SELECT id, display_name, role, mfa_enabled FROM users
+                WHERE email_bidx = :t AND disabled_at IS NULL"""),
+        {"t": tb},
+    ).first()
+    if user is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That code has expired. Request a new one.")
+
+    user_id, display_name, role, mfa_enabled = user
+
+    db.execute(text("UPDATE login_codes SET consumed_at = NOW() WHERE id = :i"), {"i": code_id})
+    db.execute(text("UPDATE users SET last_login_at = NOW(), failed_attempts = 0, locked_until = NULL WHERE id = :i"),
+               {"i": user_id})
+    _log_attempt(db, tb, ip, "code_ok", request.headers.get("user-agent"))
+    write_audit(db, actor_id=user_id, action="login.success", entity_type="session", entity_ref="otp")
+
+    # Admins still clear TOTP after the email code — the console's second step.
+    if role == "admin" and mfa_enabled:
+        db.commit()
+        return {"mfa_required": True, "mfa_token": issue_access_token(user_id, scope="mfa", ttl_min=5)}
+
+    access = issue_access_token(user_id, scope="session")
+    refresh = issue_refresh_token(db, user_id, ip=ip, user_agent=request.headers.get("user-agent"))
+    db.commit()
+    return {
+        "access_token": access,
+        "refresh_token": refresh,
+        "user": {"id": user_id, "name": display_name, "role": role},
+    }
+
+
+@router.post("/request-code/sms", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+def request_code_sms():
+    """Intentionally unimplemented — see the module docstring."""
+    raise HTTPException(
+        status.HTTP_501_NOT_IMPLEMENTED,
+        "SMS sign-in is disabled. No SMS gateway offers a free tier; add a paid "
+        "provider and implement this endpoint against login_codes (channel='sms').",
+    )

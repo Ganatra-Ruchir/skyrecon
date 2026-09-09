@@ -1,0 +1,2015 @@
+<title>SkyRecon Console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --void:#0a0403; --bg:#100808; --surface:#170a09; --panel:#1e0d0b; --panel2:#250f0c; --raise:#320f0c;
+  --line:#4a1a10; --line-soft:#2e120e;
+  --ink:#f7ece7; --dim:#bfa79f; --faint:#8b6a61; --ghost:#5c4239;
+  --lava:#a71d08; --hot:#e73b0d; --gold:#fbc856; --moss:#7f9e6a; --ash:#8aa3c0;
+  --crit:#e73b0d; --high:#c1381a; --med:#fbc856; --low:#7f9e6a;
+  --crit-w:rgba(231,59,13,.12); --high-w:rgba(167,29,8,.16); --med-w:rgba(251,200,86,.12); --low-w:rgba(127,158,106,.12);
+  --glow:0 0 22px rgba(231,59,13,.20);
+  --r:8px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{
+  color:var(--ink);font-family:'Barlow',-apple-system,'Segoe UI',sans-serif;font-size:13.5px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  background:
+    radial-gradient(900px 500px at 88% -8%,rgba(167,29,8,.10),transparent 60%),
+    radial-gradient(700px 420px at -6% 96%,rgba(109,19,8,.14),transparent 62%),var(--bg);
+  background-attachment:fixed;
+}
+h1,h2,h3,h4{font-family:'Archivo',sans-serif;margin:0;letter-spacing:-.015em;color:#fff6f1;text-wrap:balance}
+.mono{font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
+::selection{background:rgba(231,59,13,.32);color:#fff}
+button,input,textarea,select{font-family:inherit;color:inherit}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3a1611;border-radius:9px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#571e13}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ── shell ─────────────────────────────────────────────── */
+.app{display:grid;grid-template-columns:214px 1fr;min-height:100vh}
+.side{background:linear-gradient(180deg,var(--surface),#120706);border-right:1px solid var(--line-soft);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:16px 14px 14px;border-bottom:1px solid var(--line-soft)}
+.brand svg{flex:none}
+.brand-n{font-family:'Archivo',sans-serif;font-weight:800;font-size:14.5px;letter-spacing:.06em;color:#fff6f1}
+.brand-s{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.17em;color:var(--faint);margin-top:1px}
+.nav{padding:10px 8px;flex:1}
+.nav-g{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.18em;color:#6d4b41;padding:12px 8px 5px}
+.nav-i{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:6px;cursor:pointer;color:var(--dim);
+  font-size:12.5px;font-weight:500;position:relative;transition:background .14s,color .14s}
+.nav-i svg{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.nav-i:hover{background:#1f0c09;color:#f3ded6}
+.nav-i.on{background:linear-gradient(90deg,rgba(167,29,8,.30),rgba(167,29,8,.05));color:#fff1ea}
+.nav-i.on::before{content:"";position:absolute;left:-8px;top:5px;bottom:5px;width:2px;background:var(--hot);border-radius:2px;box-shadow:var(--glow)}
+.nav-i.on svg{color:var(--hot)}
+.nav-c{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--faint)}
+.nav-c.hot{color:var(--hot)}
+.side-f{border-top:1px solid var(--line-soft);padding:10px 12px 12px}
+.store-pill{display:flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--faint);letter-spacing:.04em}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--moss);flex:none;box-shadow:0 0 8px rgba(127,158,106,.7)}
+.dot.warn{background:var(--gold);box-shadow:0 0 8px rgba(251,200,86,.6)}
+.dot.off{background:#5c4239;box-shadow:none}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:20;background:rgba(16,8,8,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft);
+  padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.top h1{font-size:15.5px;font-weight:700}
+.top .sub{font-size:11.5px;color:var(--faint)}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.canvas{padding:16px 18px 60px;min-width:0}
+
+/* ── primitives ────────────────────────────────────────── */
+.grid{display:grid;gap:12px;margin-bottom:12px}
+.g21{grid-template-columns:2fr 1fr}.g12{grid-template-columns:1fr 2fr}.g11{grid-template-columns:1fr 1fr}
+.g111{grid-template-columns:repeat(3,1fr)}
+@media(max-width:1150px){.g21,.g12,.g11,.g111{grid-template-columns:1fr}}
+.pan{background:linear-gradient(180deg,var(--panel),var(--surface));border:1px solid var(--line-soft);border-radius:var(--r);min-width:0}
+.pan-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 13px;border-bottom:1px solid var(--line-soft)}
+.pan-h h3{font-size:12.5px;font-weight:600;color:#f0dcd4;display:flex;align-items:center;gap:8px}
+.pan-b{padding:13px}
+.pan-b.flush{padding:0}
+.hint{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--faint);letter-spacing:.05em}
+
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 11px;font-size:12px;cursor:pointer;
+  color:#e2c9c0;transition:.15s;white-space:nowrap}
+.btn:hover{border-color:#6d2312;color:#fff;background:#2d100c}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.pri{background:linear-gradient(180deg,#b52310,#8a1806);border-color:#c33517;color:#fff3ec;font-weight:600}
+.btn.pri:hover{box-shadow:var(--glow)}
+.btn.gold{background:rgba(251,200,86,.12);border-color:rgba(251,200,86,.35);color:var(--gold)}
+.btn.sm{padding:4px 8px;font-size:11px}
+.btn.danger{color:#f0907c;border-color:rgba(231,59,13,.35)}
+
+.tag{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:9.5px;
+  padding:2px 7px;border-radius:4px;letter-spacing:.05em;border:1px solid transparent;white-space:nowrap}
+.t-crit{color:#ff9377;background:var(--crit-w);border-color:rgba(231,59,13,.35)}
+.t-high{color:#ec8f74;background:var(--high-w);border-color:rgba(193,56,26,.35)}
+.t-med{color:var(--gold);background:var(--med-w);border-color:rgba(251,200,86,.3)}
+.t-low{color:#a7c290;background:var(--low-w);border-color:rgba(127,158,106,.3)}
+.t-mut{color:var(--faint);background:#1c0b09;border-color:var(--line-soft)}
+.t-gold{color:var(--gold);background:var(--med-w);border-color:rgba(251,200,86,.3)}
+.t-ash{color:var(--ash);background:rgba(138,163,192,.10);border-color:rgba(138,163,192,.28)}
+
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.13em;color:#8a5f52;
+  padding:8px 12px;border-bottom:1px solid var(--line-soft);background:#150807;white-space:nowrap;position:sticky;top:0}
+tbody td{padding:8px 12px;border-bottom:1px solid var(--line-soft);font-size:12.5px;vertical-align:middle}
+tbody tr{cursor:pointer;transition:background .12s}
+tbody tr:hover{background:#22100c}
+tbody tr:last-child td{border-bottom:none}
+.sevbar{display:inline-block;width:3px;height:15px;border-radius:2px;vertical-align:-3px;margin-right:8px}
+.rb{display:inline-flex;align-items:center;gap:8px}
+.rb u{display:block;width:46px;height:3px;background:#2c110d;border-radius:3px;overflow:hidden;text-decoration:none}
+.rb u i{display:block;height:100%;width:0;border-radius:3px;transition:width .8s cubic-bezier(.22,1,.36,1)}
+.rb b{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:500;color:#e8d2c9}
+.val{font-family:'JetBrains Mono',monospace;font-size:12px;color:#f0b79c;word-break:break-all}
+
+/* metrics */
+.strip{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid var(--line-soft);border-radius:var(--r);
+  background:linear-gradient(180deg,var(--panel),var(--surface));overflow:hidden;margin-bottom:12px}
+@media(max-width:1000px){.strip{grid-template-columns:repeat(3,1fr)}}
+.mt{padding:11px 13px;border-right:1px solid var(--line-soft)}
+.mt:last-child{border-right:none}
+.mt-l{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.11em;color:var(--faint)}
+.mt-v{font-family:'Archivo',sans-serif;font-weight:800;font-size:22px;color:#fff6f1;line-height:1.2;margin-top:3px;letter-spacing:-.02em}
+.mt-s{font-size:10.5px;color:var(--ghost);font-family:'JetBrains Mono',monospace}
+
+/* empty states — the console shows nothing until the analyst supplies data */
+.empty{text-align:center;padding:46px 22px;color:var(--faint)}
+.empty svg{width:34px;height:34px;stroke:#5c2418;fill:none;stroke-width:1.2;margin-bottom:12px}
+.empty h4{font-size:14px;color:#d9beb3;margin-bottom:6px;font-family:'Archivo',sans-serif}
+.empty p{font-size:12.5px;max-width:44ch;margin:0 auto 14px;line-height:1.6}
+
+/* ingest */
+.ing{display:grid;grid-template-columns:1fr 300px;gap:12px}
+@media(max-width:1000px){.ing{grid-template-columns:1fr}}
+textarea.paste{width:100%;min-height:230px;background:#0b0504;border:1px solid var(--line-soft);border-radius:7px;
+  padding:12px 13px;color:#e9d6cd;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.65;resize:vertical;outline:none}
+textarea.paste:focus{border-color:rgba(231,59,13,.5);box-shadow:0 0 0 3px rgba(231,59,13,.08)}
+textarea.paste::placeholder{color:#573c33}
+.seg{display:inline-flex;background:#170a08;border:1px solid var(--line-soft);border-radius:6px;overflow:hidden}
+.seg b{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:500;padding:6px 11px;cursor:pointer;color:var(--faint);
+  border-right:1px solid var(--line-soft);transition:.14s}
+.seg b:last-child{border-right:none}
+.seg b:hover{color:var(--ink);background:#22100c}
+.seg b.on{background:rgba(167,29,8,.3);color:#ffd9cb}
+.drop{border:1px dashed #562014;border-radius:7px;padding:14px;text-align:center;color:var(--faint);font-size:12px;cursor:pointer;transition:.15s}
+.drop:hover,.drop.over{border-color:var(--hot);color:var(--dim);background:rgba(231,59,13,.05)}
+
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.kv div{background:#1a0b09;border:1px solid var(--line-soft);border-radius:6px;padding:7px 10px}
+.kv u{display:block;text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.12em;color:var(--faint)}
+.kv b{display:block;font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:500;color:#eeddd5;margin-top:2px;word-break:break-all}
+
+/* factor ledger — the arithmetic behind a score */
+.ledger{border:1px solid var(--line-soft);border-radius:7px;overflow:hidden;margin-top:8px}
+.ledger .lr{display:flex;align-items:center;gap:10px;padding:7px 11px;border-bottom:1px solid var(--line-soft);font-size:12px}
+.ledger .lr:last-child{border-bottom:none}
+.ledger .lr.total{background:#1c0b09;font-weight:600}
+.ledger .lname{flex:none;width:168px;color:#e0c7bd}
+.ledger .ldet{flex:1;color:var(--faint);font-size:11.5px;min-width:0}
+.ledger .ldelta{font-family:'JetBrains Mono',monospace;font-size:12px;flex:none;width:44px;text-align:right}
+.pos{color:#ff9377}.neg{color:var(--moss)}
+
+/* bars */
+.bar{height:5px;background:#2c110d;border-radius:4px;overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%;width:0;border-radius:4px;transition:width .8s cubic-bezier(.22,1,.36,1)}
+.brow{margin-bottom:10px}
+.brow .bl{display:flex;justify-content:space-between;font-size:11.5px;color:#c8ab9f}
+.brow .bl span:last-child{font-family:'JetBrains Mono',monospace;color:var(--dim)}
+
+/* graph */
+.gwrap{position:relative;background:
+  radial-gradient(600px 300px at 50% 45%,rgba(167,29,8,.07),transparent 70%),
+  repeating-linear-gradient(0deg,transparent 0 25px,rgba(74,26,16,.22) 25px 26px),
+  repeating-linear-gradient(90deg,transparent 0 25px,rgba(74,26,16,.22) 25px 26px),#130807;
+  border-radius:0 0 var(--r) var(--r);overflow:hidden}
+.gwrap svg{display:block;width:100%;height:440px}
+.gnode{cursor:pointer}
+.gnode .ring{opacity:0;transition:opacity .2s}
+.gnode:hover .ring,.gnode.on .ring{opacity:1}
+.gnode.on{filter:drop-shadow(0 0 9px rgba(231,59,13,.5))}
+.gedge{stroke:#4a1a10;stroke-width:1.1;transition:stroke .2s,opacity .2s}
+.gedge.lit{stroke:var(--hot);opacity:1}
+.gedge.dim{opacity:.2}
+.glab{font-family:'JetBrains Mono',monospace;font-size:8px;fill:#7a5348;letter-spacing:.04em}
+.gname{font-family:'JetBrains Mono',monospace;font-size:9.5px;fill:#e3cbc1}
+.gsub{font-family:'JetBrains Mono',monospace;font-size:8px;fill:#8b6a61}
+
+/* rules */
+.rule-card{border:1px solid var(--line-soft);border-radius:7px;padding:11px 13px;margin-bottom:9px;background:var(--panel)}
+.rule-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.rule-name{font-weight:600;font-size:12.5px;color:#f0dcd4;flex:1}
+.expr-in{width:100%;background:#0b0504;border:1px solid var(--line-soft);border-radius:6px;padding:8px 10px;
+  color:#f0b79c;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none}
+.expr-in:focus{border-color:rgba(231,59,13,.5)}
+.expr-in.bad{border-color:var(--crit)}
+.parse-msg{font-family:'JetBrains Mono',monospace;font-size:10.5px;margin-top:5px}
+.parse-ok{color:var(--moss)}.parse-bad{color:#ff9377}
+.sw{width:32px;height:18px;border-radius:20px;background:#2c110d;border:1px solid var(--line);position:relative;cursor:pointer;flex:none;transition:.18s}
+.sw::after{content:"";position:absolute;top:1.5px;left:1.5px;width:13px;height:13px;border-radius:50%;background:#6b4a40;transition:.18s}
+.sw.on{background:rgba(127,158,106,.22);border-color:rgba(127,158,106,.5)}
+.sw.on::after{transform:translateX(14px);background:var(--moss);box-shadow:0 0 8px rgba(127,158,106,.6)}
+
+/* matrix */
+.mtx{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px}
+.mcol h4{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.12em;color:#8a5f52;padding-bottom:7px;font-weight:500}
+.tcell{border:1px solid var(--line-soft);background:var(--panel2);border-radius:6px;padding:9px 10px;margin-bottom:7px;cursor:pointer;transition:.15s}
+.tcell:hover{transform:translateY(-1px);border-color:#6d2312}
+.tcell .tid{font-family:'JetBrains Mono',monospace;font-size:11px;color:#eddbd3;font-weight:500}
+.tcell .tnm{font-size:11px;color:var(--faint);margin:1px 0 6px;line-height:1.3}
+.tcell .tct{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--dim)}
+
+/* flyout */
+.scrim{position:fixed;inset:0;background:rgba(6,3,2,.66);opacity:0;pointer-events:none;transition:opacity .22s;z-index:60;backdrop-filter:blur(2px)}
+.scrim.on{opacity:1;pointer-events:auto}
+.fly{position:fixed;top:0;right:0;height:100%;width:min(500px,95vw);background:linear-gradient(180deg,#1a0b09,#120706);
+  border-left:1px solid var(--line);box-shadow:-30px 0 70px rgba(0,0,0,.6);transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.22,1,.36,1);z-index:70;overflow-y:auto}
+.fly.on{transform:none}
+.fly-h{position:sticky;top:0;background:#1a0b09;border-bottom:1px solid var(--line-soft);padding:15px 17px 13px;z-index:2}
+.fly-x{position:absolute;top:13px;right:13px;width:26px;height:26px;border-radius:6px;background:#250f0c;border:1px solid var(--line);cursor:pointer;color:var(--dim);font-size:13px;line-height:1}
+.fly-x:hover{color:var(--hot);border-color:#6d2312}
+.fly-b{padding:14px 17px 44px}
+.sech{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.15em;color:var(--faint);margin:16px 0 8px}
+.gauge{position:relative;width:78px;height:78px;flex:none}
+.gauge svg{transform:rotate(-90deg);display:block}
+.gauge b{position:absolute;inset:0;display:grid;place-items:center;font-family:'Archivo',sans-serif;font-weight:800;font-size:20px;color:#fff}
+.note{background:#1a0b09;border-left:2px solid var(--lava);border-radius:0 6px 6px 0;padding:10px 12px;font-size:12.5px;color:#cdb1a6;line-height:1.55}
+.acts{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+
+/* toasts */
+.toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:95}
+.toast{background:#250f0c;border:1px solid var(--line);border-left:2px solid var(--hot);border-radius:6px;padding:9px 14px;
+  font-size:12.5px;color:#eddbd3;box-shadow:0 14px 34px rgba(0,0,0,.5);animation:tin .26s cubic-bezier(.22,1,.36,1) both;max-width:340px}
+@keyframes tin{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.toast.out{animation:tout .2s ease forwards}
+@keyframes tout{to{opacity:0;transform:translateX(8px)}}
+
+/* misc */
+.list-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.list-row:last-child{border-bottom:none}
+.list-row:hover .lname2{color:var(--hot)}
+.lname2{flex:1;min-width:0;font-size:12.5px;color:#dcc3b9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color .14s}
+.lmeta{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--faint);flex:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:4px 10px;border-radius:16px;border:1px solid var(--line-soft);background:var(--panel);font-size:11.5px;cursor:pointer;transition:.14s;color:var(--dim)}
+.chip:hover{border-color:#6d2312;color:var(--ink)}
+.chip.on{background:rgba(167,29,8,.3);border-color:#8a1e0c;color:#ffd9cb}
+.mini-doc{font-size:12.5px;color:#c3a89e;line-height:1.65}
+.mini-doc code{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:#1c0b09;padding:1px 5px;border-radius:4px;color:#f0b79c}
+.mini-doc p{margin:0 0 9px}
+.term{background:#0a0504;border:1px solid var(--line-soft);border-radius:7px;max-height:300px;overflow-y:auto;padding:10px 12px;
+  font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.75;color:#b39c93}
+.term .tl{display:flex;gap:10px;border-bottom:1px solid rgba(46,18,14,.6);padding:2px 0}
+.term .tl b{color:#6d4b41;font-weight:400;flex:none}
+@media(max-width:900px){
+  .app{grid-template-columns:56px 1fr}
+  .brand-n,.brand-s,.nav-i span:not(.nav-c),.nav-g,.store-pill span{display:none}
+  .nav-i{justify-content:center}
+  .canvas{padding:14px 12px 50px}
+}
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand" id="brandMark"></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-f">
+      <div class="store-pill" id="storePill"><i class="dot off"></i><span>checking store…</span></div>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div><h1 id="ptitle">Ingest</h1><div class="sub" id="psub"></div></div>
+      <div class="top-r" id="topActions"></div>
+    </header>
+    <main class="canvas" id="canvas"></main>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="fly" id="fly"></div>
+<div class="toasts" id="toasts"></div>
+
+<script>/* ============================================================================
+ * SkyRecon analysis engine
+ * ----------------------------------------------------------------------------
+ * Pure, deterministic functions. No randomness, no network, no fabricated data.
+ * Every score is computed from the input the analyst supplies and every factor
+ * that moved a score is returned alongside it, so the UI can explain itself.
+ *
+ * The same file runs in the browser (inlined into the console) and in Node
+ * (required by the test suite), so the tests exercise exactly what ships.
+ * ==========================================================================*/
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.SkyRecon = api;
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  /* ── reference tables ──────────────────────────────────────────────────
+   * These are static, editable reference data — not guesses generated at
+   * runtime. Sources are named so they can be refreshed deliberately.
+   * ====================================================================*/
+
+  // Valid TLDs, trimmed to those that realistically appear in threat data.
+  // Anything outside this set is treated as "not a domain" (kills the
+  // report.pdf / config.json style false positives).
+  const TLDS = new Set(('com net org edu gov mil int info biz name pro io ai co me tv cc us uk ca au de fr es it nl se no fi dk pl ru ua cn jp kr in br mx za ch at be cz gr pt ro hu ie il nz sg hk tw th vn id my ph pk bd lk np ir tr sa ae eg ng ke gh tz ug ma dz tn ly sd et zm zw mz ao cm ci sn ml bf ne td mr gn bj tg sl lr gm gw cv st gq ga cg cd rw bi dj so er km mg mu sc yt re mw ls sz bw na app dev cloud site online store shop tech space website web page link click top xyz icu buzz rest cyou sbs work live cfd bond quest fit beauty makeup skin hair mom lol wiki blog news press today world life love art fun run one plus zone city land world group team pub bar cafe menu pizza wine gold silver black red blue green pink asia global center company solutions services support systems network digital media agency studio design host domains email mail cloud tools apps software data science engineering finance capital fund trade market money cash bank insure legal law tax health care clinic doctor dental fitness gym yoga travel tours flights hotels rentals homes house realty estate build construction repair auto cars bike boats parts tires energy solar power gas oil water farm garden pet dog cat vet toys games play video music film movie photo gallery gifts party events club social chat forum community church faith bible school academy college university institute training courses education students library books guide tips how info help faq support desk help center'
+    ).split(/\s+/).filter(Boolean));
+
+  // TLD abuse weighting. Tiers reflect repeatedly published abuse rankings
+  // (Spamhaus "most abused TLDs", Interisle Cybercrime Supply Chain).
+  // Editable: raise or lower per your own telemetry.
+  const TLD_RISK = {
+    top: 0.92, cyou: 0.90, sbs: 0.90, cfd: 0.88, buzz: 0.86, icu: 0.86,
+    click: 0.85, rest: 0.84, quest: 0.82, bond: 0.82, xyz: 0.80, cc: 0.74,
+    work: 0.72, live: 0.66, fit: 0.66, beauty: 0.66, makeup: 0.64, mom: 0.62,
+    online: 0.62, site: 0.60, space: 0.60, website: 0.58, store: 0.56,
+    shop: 0.54, info: 0.52, biz: 0.50, link: 0.50, host: 0.48, pro: 0.42,
+    app: 0.34, dev: 0.32, io: 0.28, ai: 0.28, me: 0.30, tv: 0.32, co: 0.34,
+    net: 0.22, org: 0.20, com: 0.18, edu: 0.06, gov: 0.04, mil: 0.04,
+  };
+  const TLD_RISK_DEFAULT = 0.40;
+
+  // The 120 most frequent English bigrams (Norvig, Google Books n-gram
+  // analysis). Used to measure how "pronounceable" a label is — DGA output
+  // scores low here because it does not follow natural letter transitions.
+  const COMMON_BIGRAMS = new Set(('th he in er an re on at en nd ti es or te of ed is it al ar st to nt ng se ha as ou io le ve co me de hi ri ro ic ne ea ra ce li ch ll be ma si om ur ca el ta la ns di fo ho pe ec pr ne ct rs sa ai ss us wa em ut il ot ad ye ur ow ge ie ns rt mi so wi tr ur pa ke ai lo ap sh ai un ns id ol na ay ep di rd ir ei bo ba mo ul ns nc av if ay pl ig ee no ke ty ke gh op nn sp mp ck ub ud ug am ab ac ad af ag ak am ap'
+    ).split(/\s+/).filter(Boolean));
+
+  // Words that repeatedly appear in credential-harvesting infrastructure.
+  const PHISH_WORDS = ['login','signin','sign-in','secure','security','verify','verification',
+    'account','update','confirm','support','helpdesk','recovery','reset','password','credential',
+    'billing','invoice','payment','wallet','bank','paypal','apple','microsoft','office365','outlook',
+    'onedrive','sharepoint','docusign','dropbox','netflix','amazon','sso','mfa','2fa','auth','portal',
+    'webmail','unlock','suspended','urgent','alert','refund','delivery','tracking','customs'];
+
+  // Loader / dual-use file extensions worth flagging inside a URL path.
+  const RISKY_EXT = ['exe','scr','ps1','bat','cmd','hta','vbs','js','jse','wsf','jar','dll',
+    'lnk','iso','img','msi','apk','doc','docm','xls','xlsm','ppt','pptm','rtf','zip','rar','7z'];
+
+  // Cyrillic / Greek characters that read as Latin. Homograph detection.
+  const CONFUSABLES = { 'а':'a','е':'e','о':'o','р':'p','с':'c','у':'y','х':'x','і':'i','ѕ':'s',
+    'ԁ':'d','ɡ':'g','ν':'v','ο':'o','α':'a','ρ':'p','τ':'t','ι':'i','κ':'k','μ':'u' };
+
+  /* ── small maths helpers ───────────────────────────────────────────── */
+
+  function shannonEntropy(s) {
+    if (!s || !s.length) return 0;
+    const freq = Object.create(null);
+    for (const ch of s) freq[ch] = (freq[ch] || 0) + 1;
+    let h = 0;
+    for (const k in freq) { const p = freq[k] / s.length; h -= p * Math.log2(p); }
+    return round(h, 3);
+  }
+
+  function mean(xs) { return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0; }
+
+  function stddev(xs) {
+    if (xs.length < 2) return 0;
+    const m = mean(xs);
+    return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1));
+  }
+
+  function zscore(x, xs) {
+    const sd = stddev(xs);
+    if (!sd) return 0;
+    return round((x - mean(xs)) / sd, 3);
+  }
+
+  function round(n, dp) { const f = Math.pow(10, dp == null ? 2 : dp); return Math.round(n * f) / f; }
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+
+  /* ── defanging ─────────────────────────────────────────────────────── */
+
+  function refang(text) {
+    return String(text || '')
+      // bracketed separators are unambiguous
+      .replace(/\[\.\]|\(\.\)|\{\.\}/g, '.')
+      .replace(/\[:\]|\(:\)/g, ':')
+      .replace(/\[@\]|\(@\)|\{@\}/g, '@')
+      .replace(/\[\/\]/g, '/')
+      // "word dot tld" and "user at domain" only when both sides look like the
+      // parts of a real name. Prose such as "observed at evil.xyz" must NOT
+      // become an email address, so the word forms need bracketing or a label
+      // on both sides with no spaces left over.
+      .replace(/([a-z0-9-]{2,})\s*[\[(]?\s*dot\s*[\])]?\s*([a-z]{2,24})\b/gi, '$1.$2')
+      .replace(/([a-z0-9._%+-]{2,})\s*[\[(]\s*at\s*[\])]\s*([a-z0-9.-]{2,})/gi, '$1@$2')
+      .replace(/h(?:xx|XX|tt)p(s?):\/\//gi, (m, s) => 'http' + (s || '') + '://');
+  }
+
+  /* ── extraction ────────────────────────────────────────────────────── */
+
+  const RE = {
+    url:    /\b(?:https?|ftp):\/\/[^\s<>"'`\])]+/gi,
+    ipv4:   /\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b/g,
+    ipv6:   /\b(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}\b/gi,
+    domain: /\b(?:[a-z0-9Ѐ-ӿ](?:[a-z0-9Ѐ-ӿ-]{0,61}[a-z0-9Ѐ-ӿ])?\.)+[a-z]{2,24}\b/gi,
+    sha256: /\b[a-f0-9]{64}\b/gi,
+    sha1:   /\b[a-f0-9]{40}\b/gi,
+    md5:    /\b[a-f0-9]{32}\b/gi,
+    email:  /\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}\b/gi,
+    cve:    /\bCVE-(?:19|20)\d{2}-\d{4,7}\b/gi,
+  };
+
+  // Reserved / non-routable space — RFC 1918, loopback, link-local, CGNAT,
+  // documentation ranges, multicast, broadcast.
+  function ipClassify(ip) {
+    const o = ip.split('.').map(Number);
+    if (o.length !== 4 || o.some((n) => Number.isNaN(n) || n > 255)) return { valid: false };
+    const [a, b] = o;
+    const t = (label, routable) => ({ valid: true, scope: label, routable, octets: o });
+    if (a === 10) return t('RFC1918 private', false);
+    if (a === 172 && b >= 16 && b <= 31) return t('RFC1918 private', false);
+    if (a === 192 && b === 168) return t('RFC1918 private', false);
+    if (a === 127) return t('loopback', false);
+    if (a === 169 && b === 254) return t('link-local', false);
+    if (a === 100 && b >= 64 && b <= 127) return t('CGNAT (RFC6598)', false);
+    if (a === 192 && b === 0 && o[2] === 2) return t('documentation (TEST-NET-1)', false);
+    if (a === 198 && (b === 18 || b === 19)) return t('benchmark (RFC2544)', false);
+    if (a === 198 && b === 51 && o[2] === 100) return t('documentation (TEST-NET-2)', false);
+    if (a === 203 && b === 0 && o[2] === 113) return t('documentation (TEST-NET-3)', false);
+    if (a >= 224 && a <= 239) return t('multicast', false);
+    if (a >= 240) return t('reserved', false);
+    if (a === 0) return t('unspecified', false);
+    return t('public', true);
+  }
+
+  const BENIGN_DOMAINS = new Set(['example.com','example.org','example.net','localhost','test',
+    'invalid','local','microsoft.com','windowsupdate.com','google.com','gstatic.com','github.com',
+    'githubusercontent.com','cloudflare.com','akamai.net','amazonaws.com','apple.com','mozilla.org',
+    'w3.org','schema.org','ietf.org','iana.org','wikipedia.org','python.org','npmjs.com','debian.org',
+    'ubuntu.com','digicert.com','letsencrypt.org','sectigo.com','verisign.com','office.com','live.com']);
+
+  function domainParts(d) {
+    const labels = d.toLowerCase().split('.');
+    const tld = labels[labels.length - 1];
+    const sld = labels.length >= 2 ? labels[labels.length - 2] : '';
+    return { labels, tld, sld, registrable: labels.slice(-2).join('.'), depth: labels.length - 2 };
+  }
+
+  /**
+   * Pull indicators out of arbitrary text. Returns every candidate with a
+   * verdict: kept, or dropped with the reason it was dropped. Nothing is
+   * silently discarded — the UI shows the drop list so the analyst can see
+   * exactly what the parser did.
+   */
+  function extract(rawText) {
+    const text = refang(rawText);
+    const seen = new Map();     // value -> record
+    const dropped = [];
+    const claimed = [];         // character spans already consumed
+
+    const add = (type, value, weightHint) => {
+      const key = type + '|' + value.toLowerCase();
+      if (seen.has(key)) { seen.get(key).count++; return; }
+      seen.set(key, { type, value, count: 1, hint: weightHint || null });
+    };
+    const dropIndex = new Map();
+    const drop = (type, value, reason) => {
+      const k = type + '|' + value.toLowerCase();
+      if (dropIndex.has(k)) { dropIndex.get(k).count++; return; }
+      const rec = { type, value, reason, count: 1 };
+      dropIndex.set(k, rec); dropped.push(rec);
+    };
+
+    // URLs first, and remember their spans so their host/path do not get
+    // re-extracted as separate loose indicators.
+    let m;
+    RE.url.lastIndex = 0;
+    while ((m = RE.url.exec(text))) {
+      const raw = m[0].replace(/[.,;:)\]]+$/, '');
+      claimed.push([m.index, m.index + raw.length]);
+      add('url', raw);
+      try {
+        const u = new URL(raw);
+        const host = u.hostname;
+        if (RE.ipv4.test(host)) { RE.ipv4.lastIndex = 0; add('ipv4', host, 'url-host'); }
+        else if (host.includes('.')) add('domain', host, 'url-host');
+      } catch (_) { /* malformed URL: keep the raw string only */ }
+    }
+    const inClaimed = (i, len) => claimed.some(([s, e]) => i >= s && i + len <= e);
+
+    RE.ipv4.lastIndex = 0;
+    while ((m = RE.ipv4.exec(text))) {
+      if (inClaimed(m.index, m[0].length)) continue;
+      const info = ipClassify(m[0]);
+      if (!info.routable) drop('ipv4', m[0], info.scope);
+      else add('ipv4', m[0]);
+    }
+
+    RE.sha256.lastIndex = 0; while ((m = RE.sha256.exec(text))) add('sha256', m[0].toLowerCase());
+    RE.sha1.lastIndex = 0;
+    while ((m = RE.sha1.exec(text))) { const v = m[0].toLowerCase(); if (!seen.has('sha256|' + v)) add('sha1', v); }
+    RE.md5.lastIndex = 0;   while ((m = RE.md5.exec(text)))   add('md5', m[0].toLowerCase());
+    RE.cve.lastIndex = 0;   while ((m = RE.cve.exec(text)))   add('cve', m[0].toUpperCase());
+
+    RE.email.lastIndex = 0;
+    const emailHosts = new Set();
+    while ((m = RE.email.exec(text))) {
+      const v = m[0].toLowerCase();
+      const host = v.split('@')[1];
+      emailHosts.add(host);
+      claimed.push([m.index, m.index + m[0].length]);
+      add('email', v);
+    }
+
+    RE.domain.lastIndex = 0;
+    while ((m = RE.domain.exec(text))) {
+      const v = m[0].toLowerCase().replace(/\.$/, '');
+      if (inClaimed(m.index, m[0].length) && !emailHosts.has(v)) continue;
+      const { tld, registrable } = domainParts(v);
+      if (!TLDS.has(tld)) { drop('domain', v, 'not a recognised TLD (.' + tld + ')'); continue; }
+      if (BENIGN_DOMAINS.has(v) || BENIGN_DOMAINS.has(registrable)) { drop('domain', v, 'known-benign infrastructure'); continue; }
+      if (/^\d+\.\d+$/.test(v)) { drop('domain', v, 'looks like a version number'); continue; }
+      add('domain', v);
+    }
+
+    return { indicators: Array.from(seen.values()), dropped, refanged: text };
+  }
+
+  /* ── enrichment ────────────────────────────────────────────────────── */
+
+  /**
+   * DGA likelihood for one domain label. Five measurable components, each
+   * returned so the score can be defended in a report:
+   *   entropy        – Shannon entropy normalised against label length
+   *   bigrams        – share of letter pairs that occur in natural English
+   *   consonantRun   – longest run of consonants
+   *   digitRatio     – digits mixed into the label
+   *   vowelRatio     – deviation from the ~38% vowel share of English words
+   */
+  function dgaScore(label) {
+    const s = String(label || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (s.length < 5) return { score: 0, components: [], note: 'label too short to assess' };
+
+    const letters = s.replace(/[^a-z]/g, '');
+    const maxH = Math.log2(Math.max(2, new Set(s).size));
+    const entropyNorm = clamp(shannonEntropy(s) / (maxH || 1), 0, 1);
+
+    let hits = 0, pairs = 0;
+    for (let i = 0; i < letters.length - 1; i++) { pairs++; if (COMMON_BIGRAMS.has(letters.slice(i, i + 2))) hits++; }
+    const bigramHit = pairs ? hits / pairs : 0;
+
+    let run = 0, best = 0;
+    for (const ch of letters) { if ('aeiou'.includes(ch)) run = 0; else { run++; best = Math.max(best, run); } }
+
+    const digitRatio = (s.replace(/\D/g, '').length) / s.length;
+    const vowels = (letters.match(/[aeiou]/g) || []).length;
+    const vowelRatio = letters.length ? vowels / letters.length : 0;
+    const vowelDev = clamp(Math.abs(vowelRatio - 0.38) / 0.38, 0, 1);
+
+    const components = [
+      { key: 'entropy',      value: round(entropyNorm, 3), weight: 0.3, detail: 'normalised Shannon entropy ' + shannonEntropy(s) },
+      { key: 'bigrams',      value: round(1 - bigramHit, 3), weight: 0.28, detail: round(bigramHit * 100, 1) + '% of letter pairs are natural English bigrams' },
+      { key: 'consonantRun', value: round(clamp((best - 2) / 5, 0, 1), 3), weight: 0.18, detail: 'longest consonant run ' + best },
+      { key: 'digitRatio',   value: round(clamp(digitRatio * 2.5, 0, 1), 3), weight: 0.12, detail: round(digitRatio * 100, 1) + '% digits' },
+      { key: 'vowelRatio',   value: round(vowelDev, 3), weight: 0.12, detail: round(vowelRatio * 100, 1) + '% vowels vs 38% expected' },
+    ];
+    const score = clamp(components.reduce((a, c) => a + c.value * c.weight, 0), 0, 1);
+    return { score: round(score, 3), components };
+  }
+
+  function homograph(value) {
+    const flags = [];
+    if (/^xn--/i.test(value) || value.split('.').some((l) => /^xn--/i.test(l))) flags.push('punycode label (IDN)');
+    const conf = Array.from(value).filter((c) => CONFUSABLES[c]);
+    if (conf.length) flags.push('non-Latin lookalike characters: ' + Array.from(new Set(conf)).join(' '));
+    if (/[a-z]\d[a-z]/i.test(value) && /(0|1|5|3)/.test(value)) flags.push('digit-for-letter substitution pattern');
+    return flags;
+  }
+
+  function keywordHits(value) {
+    const v = value.toLowerCase();
+    return PHISH_WORDS.filter((w) => v.includes(w));
+  }
+
+  function urlInfo(raw) {
+    let u;
+    try { u = new URL(raw); } catch (_) { return { valid: false }; }
+    const path = u.pathname || '';
+    const ext = (path.match(/\.([a-z0-9]{1,5})$/i) || [, ''])[1].toLowerCase();
+    return {
+      valid: true, scheme: u.protocol.replace(':', ''), host: u.hostname,
+      port: u.port || (u.protocol === 'https:' ? '443' : '80'),
+      nonStandardPort: !!u.port && !['80', '443'].includes(u.port),
+      hasCredentials: !!(u.username || u.password),
+      ipHost: ipClassify(u.hostname).valid,
+      pathDepth: path.split('/').filter(Boolean).length,
+      extension: ext, riskyExtension: RISKY_EXT.includes(ext),
+      queryLength: (u.search || '').length,
+    };
+  }
+
+  function hashInfo(v) {
+    const n = v.length;
+    return { algorithm: n === 32 ? 'MD5' : n === 40 ? 'SHA-1' : n === 64 ? 'SHA-256' : 'unknown',
+             collisionProne: n === 32 || n === 40 };
+  }
+
+  function cveInfo(v) {
+    const [, year, id] = v.match(/CVE-(\d{4})-(\d+)/i) || [];
+    const y = Number(year), now = new Date().getUTCFullYear();
+    return { year: y, id, plausible: y >= 1999 && y <= now + 1, age: now - y };
+  }
+
+  /**
+   * Score one indicator. Returns 0-100 risk plus every factor that moved it,
+   * with the arithmetic exposed. Deterministic: the same input always gives
+   * the same number.
+   */
+  function scoreIndicator(ind, opts) {
+    const o = opts || {};
+    const sightings = o.sightings || 1;
+    const source = o.source || 'analyst';
+    const factors = [];
+    let risk = 0;
+
+    const baseBySource = { 'feed:high-confidence': 55, 'feed:community': 42, analyst: 35, report: 38, log: 30 };
+    const base = baseBySource[source] != null ? baseBySource[source] : 35;
+    risk += base;
+    factors.push({ label: 'Source baseline', delta: base, detail: source + ' submission' });
+
+    const type = ind.type, value = ind.value;
+
+    if (type === 'domain' || type === 'url' || type === 'email') {
+      const host = type === 'url' ? (urlInfo(value).host || '') : type === 'email' ? value.split('@')[1] : value;
+      if (host) {
+        const { tld, sld, depth } = domainParts(host);
+        const tr = TLD_RISK[tld] != null ? TLD_RISK[tld] : TLD_RISK_DEFAULT;
+        const tldDelta = Math.round((tr - 0.35) * 40);
+        risk += tldDelta;
+        factors.push({ label: 'TLD weighting', delta: tldDelta, detail: '.' + tld + ' abuse weight ' + tr });
+
+        const d = dgaScore(sld);
+        if (d.score) {
+          const dgaDelta = Math.round(d.score * 34);
+          risk += dgaDelta;
+          factors.push({ label: 'DGA likelihood', delta: dgaDelta, detail: 'classifier ' + d.score + ' on "' + sld + '"', components: d.components });
+        }
+        const kw = keywordHits(host);
+        if (kw.length) {
+          const kwDelta = Math.min(16, kw.length * 7);
+          risk += kwDelta;
+          factors.push({ label: 'Credential-theft vocabulary', delta: kwDelta, detail: kw.join(', ') });
+        }
+        const hg = homograph(host);
+        if (hg.length) { risk += 18; factors.push({ label: 'Homograph indicators', delta: 18, detail: hg.join('; ') }); }
+        if (depth >= 3) { risk += 6; factors.push({ label: 'Deep subdomain nesting', delta: 6, detail: depth + ' levels below the registrable domain' }); }
+        if (host.length > 30) { risk += 4; factors.push({ label: 'Unusual hostname length', delta: 4, detail: host.length + ' characters' }); }
+      }
+    }
+
+    if (type === 'url') {
+      const u = urlInfo(value);
+      if (u.valid) {
+        if (u.riskyExtension) { risk += 15; factors.push({ label: 'Executable payload extension', delta: 15, detail: '.' + u.extension }); }
+        if (u.ipHost) { risk += 12; factors.push({ label: 'Bare IP in URL', delta: 12, detail: 'no hostname — common in loader infrastructure' }); }
+        if (u.hasCredentials) { risk += 14, factors.push({ label: 'Credentials embedded in URL', delta: 14, detail: 'user:pass@ form' }); }
+        if (u.nonStandardPort) { risk += 7; factors.push({ label: 'Non-standard port', delta: 7, detail: 'port ' + u.port }); }
+        if (u.scheme === 'http') { risk += 4; factors.push({ label: 'Cleartext scheme', delta: 4, detail: 'http:// with no TLS' }); }
+        if (u.queryLength > 120) { risk += 5; factors.push({ label: 'Oversized query string', delta: 5, detail: u.queryLength + ' characters' }); }
+      }
+    }
+
+    if (type === 'ipv4') {
+      const info = ipClassify(value);
+      if (!info.routable) {
+        risk -= 30;
+        factors.push({ label: 'Non-routable address', delta: -30, detail: info.scope });
+      }
+    }
+
+    if (type === 'md5' || type === 'sha1') {
+      const h = hashInfo(value);
+      risk -= 6;
+      factors.push({ label: 'Weak hash algorithm', delta: -6, detail: h.algorithm + ' is collision-prone — prefer SHA-256 for pivoting' });
+    }
+
+    if (type === 'cve') {
+      const c = cveInfo(value);
+      if (!c.plausible) { risk -= 25; factors.push({ label: 'Implausible CVE year', delta: -25, detail: 'year ' + c.year }); }
+      else if (c.age <= 1) { risk += 12; factors.push({ label: 'Recent CVE', delta: 12, detail: 'published within the last year' }); }
+    }
+
+    if (sightings > 1) {
+      const sDelta = Math.min(14, Math.round(Math.log2(sightings) * 6));
+      risk += sDelta;
+      factors.push({ label: 'Corroborating sightings', delta: sDelta, detail: sightings + ' observations' });
+    }
+
+    risk = clamp(Math.round(risk), 0, 100);
+
+    // Confidence is about how much you should trust the score, not how bad
+    // the thing is: strong when several independent factors agree.
+    const positive = factors.filter((f) => f.delta > 0).length;
+    let confidence = clamp(Math.round(30 + positive * 11 + Math.min(20, (sightings - 1) * 5)), 5, 97);
+    if (source.startsWith('feed:')) confidence = clamp(confidence + 8, 5, 97);
+
+    return { risk, confidence, factors, severity: severityFor(risk) };
+  }
+
+  function severityFor(risk) {
+    return risk >= 85 ? 'critical' : risk >= 65 ? 'high' : risk >= 40 ? 'medium' : 'low';
+  }
+
+  /** Confidence decays without a fresh sighting — 30-day half-life. */
+  function decayConfidence(confidence, lastSeenMs, nowMs) {
+    const days = Math.max(0, (nowMs - lastSeenMs) / 86400000);
+    return clamp(Math.round(confidence * Math.pow(0.5, days / 30)), 0, 100);
+  }
+
+  /* ── log parsing ───────────────────────────────────────────────────── */
+
+  const LOG_PATTERNS = [
+    { name: 'sshd auth',
+      re: /^(\w{3}\s+\d+\s\d{2}:\d{2}:\d{2}).*?sshd\[\d+\]:\s+(Failed|Accepted)\s+\w+\s+for\s+(?:invalid user\s+)?(\S+)\s+from\s+(\S+)/,
+      map: (m) => ({ ts: m[1], type: 'AUTH', outcome: m[2].toLowerCase() === 'failed' ? 'failure' : 'success',
+                     user: m[3], src: m[4] }) },
+    { name: 'nginx/apache combined',
+      re: /^(\S+)\s+\S+\s+(\S+)\s+\[([^\]]+)\]\s+"(\w+)\s+(\S+)[^"]*"\s+(\d{3})\s+(\d+|-)/,
+      map: (m) => ({ ts: m[3], type: 'HTTP', src: m[1], user: m[2] === '-' ? null : m[2],
+                     method: m[4], path: m[5], status: Number(m[6]), bytesOut: m[7] === '-' ? 0 : Number(m[7]) }) },
+    { name: 'windows security 4625/4624',
+      re: /Event\s?ID[:\s]+(4624|4625).*?Account Name[:\s]+(\S+).*?Source Network Address[:\s]+(\S+)/is,
+      map: (m) => ({ type: 'AUTH', outcome: m[1] === '4625' ? 'failure' : 'success', user: m[2], src: m[3] }) },
+    { name: 'firewall/flow csv',
+      re: /^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})[,\s]+(\S+)[,\s]+(\S+)[,\s]+(\d+)[,\s]+(\d+)\s*$/,
+      map: (m) => ({ ts: m[1], type: 'NETWORK', src: m[2], dst: m[3], bytesOut: Number(m[4]), bytesIn: Number(m[5]) }) },
+  ];
+
+  function parseTimestamp(s) {
+    if (!s) return null;
+    const iso = Date.parse(s);
+    if (!Number.isNaN(iso)) return iso;
+    // Apache: 10/Oct/2026:13:55:36 +0000
+    const ap = s.match(/^(\d{2})\/(\w{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2})/);
+    if (ap) {
+      const months = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+      return Date.UTC(+ap[3], months[ap[2]], +ap[1], +ap[4], +ap[5], +ap[6]);
+    }
+    // syslog: Oct 10 13:55:36 (no year — assume current)
+    const sl = s.match(/^(\w{3})\s+(\d+)\s+(\d{2}):(\d{2}):(\d{2})/);
+    if (sl) {
+      const months = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+      return Date.UTC(new Date().getUTCFullYear(), months[sl[1]], +sl[2], +sl[3], +sl[4], +sl[5]);
+    }
+    return null;
+  }
+
+  /** Parse pasted logs into normalised events. Unmatched lines are reported,
+   *  never silently dropped. JSON lines and CSV with headers are supported. */
+  function parseLogs(text) {
+    const lines = String(text || '').split(/\r?\n/).filter((l) => l.trim());
+    const events = [];
+    const unparsed = [];
+    const formats = Object.create(null);
+
+    // CSV with a header row?
+    let csvHeader = null;
+    if (lines.length > 1 && lines[0].includes(',') && !lines[0].startsWith('{')) {
+      const h = lines[0].toLowerCase().split(',').map((s) => s.trim());
+      if (h.some((c) => /time|date|timestamp/.test(c)) && h.length >= 3) csvHeader = h;
+    }
+
+    lines.forEach((line, idx) => {
+      if (csvHeader && idx === 0) return;
+
+      if (line.trim().startsWith('{')) {
+        try {
+          const j = JSON.parse(line);
+          const ev = {
+            ts: parseTimestamp(j.timestamp || j.time || j['@timestamp'] || j.ts) || null,
+            type: (j.type || j.event_type || 'OTHER').toString().toUpperCase(),
+            src: j.src_ip || j.source_ip || j.src || j.client_ip || null,
+            dst: j.dst_ip || j.destination || j.dest_ip || j.host || null,
+            user: j.user || j.username || j.account || null,
+            bytesOut: Number(j.bytes_out || j.bytes_sent || j.bytes || 0) || 0,
+            outcome: j.outcome || j.result || null,
+            raw: line,
+          };
+          events.push(ev); formats['json lines'] = (formats['json lines'] || 0) + 1; return;
+        } catch (_) { /* fall through */ }
+      }
+
+      if (csvHeader) {
+        const cells = line.split(',').map((s) => s.trim());
+        const get = (names) => { for (const n of names) { const i = csvHeader.findIndex((c) => c.includes(n)); if (i >= 0 && cells[i] != null) return cells[i]; } return null; };
+        const ev = {
+          ts: parseTimestamp(get(['timestamp', 'time', 'date'])),
+          type: (get(['type', 'event']) || 'OTHER').toUpperCase(),
+          src: get(['src', 'source', 'client']),
+          dst: get(['dst', 'dest', 'destination', 'host']),
+          user: get(['user', 'account']),
+          bytesOut: Number(get(['bytes_out', 'bytes', 'sent'])) || 0,
+          outcome: get(['outcome', 'result', 'status']),
+          raw: line,
+        };
+        if (ev.ts || ev.src || ev.dst) { events.push(ev); formats['csv'] = (formats['csv'] || 0) + 1; return; }
+      }
+
+      for (const p of LOG_PATTERNS) {
+        const m = line.match(p.re);
+        if (m) {
+          const ev = p.map(m);
+          ev.ts = parseTimestamp(ev.ts);
+          ev.raw = line;
+          ev.bytesOut = ev.bytesOut || 0;
+          events.push(ev);
+          formats[p.name] = (formats[p.name] || 0) + 1;
+          return;
+        }
+      }
+      unparsed.push({ line: idx + 1, text: line.slice(0, 160) });
+    });
+
+    return { events, unparsed, formats, lineCount: lines.length };
+  }
+
+  /**
+   * Behavioural facts computed from the analyst's own events — no baselines
+   * invented, everything measured against the data supplied.
+   */
+  function analyseEvents(events) {
+    const byHost = Object.create(null);
+    const authFailures = Object.create(null);
+    const destCount = Object.create(null);
+    const bytesSeries = [];
+
+    events.forEach((e) => {
+      const key = e.src || e.dst || 'unknown';
+      (byHost[key] || (byHost[key] = { events: 0, bytesOut: 0, failures: 0, dsts: new Set() })).events++;
+      byHost[key].bytesOut += e.bytesOut || 0;
+      if (e.dst) byHost[key].dsts.add(e.dst);
+      if (e.bytesOut) bytesSeries.push(e.bytesOut);
+      if (e.type === 'AUTH' && e.outcome === 'failure') {
+        const k = e.src || 'unknown';
+        (authFailures[k] || (authFailures[k] = [])).push(e.ts || 0);
+        byHost[key].failures++;
+      }
+      if (e.dst) destCount[e.dst] = (destCount[e.dst] || 0) + 1;
+    });
+
+    // Sliding 4-minute window over real timestamps.
+    const bruteForce = [];
+    Object.entries(authFailures).forEach(([ip, stamps]) => {
+      const ts = stamps.filter(Boolean).sort((a, b) => a - b);
+      if (ts.length < 5) { if (stamps.length >= 8) bruteForce.push({ ip, count: stamps.length, windowMs: null }); return; }
+      let best = 0, j = 0;
+      for (let i = 0; i < ts.length; i++) {
+        while (ts[i] - ts[j] > 240000) j++;
+        best = Math.max(best, i - j + 1);
+      }
+      if (best >= 5) bruteForce.push({ ip, count: best, windowMs: 240000, total: ts.length });
+    });
+
+    // A z-score over a handful of samples is noise: one outlier inflates the
+    // standard deviation it is being measured against. Require a real baseline.
+    const MIN_BASELINE = 8;
+    const transfers = bytesSeries.length < MIN_BASELINE ? [] : events
+      .filter((e) => e.bytesOut > 0)
+      .map((e) => ({ ...e, z: zscore(e.bytesOut, bytesSeries) }))
+      .filter((e) => e.z >= 3)
+      .sort((a, b) => b.z - a.z);
+
+    const rareDest = Object.entries(destCount)
+      .filter(([, n]) => n === 1)
+      .map(([d]) => d);
+
+    return {
+      hosts: Object.fromEntries(Object.entries(byHost).map(([k, v]) => [k, { ...v, dsts: v.dsts.size }])),
+      bruteForce, transfers, rareDest,
+      stats: { events: events.length, bytesMean: Math.round(mean(bytesSeries)), bytesStdDev: Math.round(stddev(bytesSeries)),
+               baselineSamples: bytesSeries.length, baselineSufficient: bytesSeries.length >= MIN_BASELINE },
+    };
+  }
+
+  /* ── rule engine (recursive descent — never eval) ──────────────────── */
+
+  function tokenize(src) {
+    const out = [];
+    const re = /\s*(>=|<=|==|!=|=~|>|<|\(|\)|\band\b|\bor\b|\bnot\b|"[^"]*"|\/(?:[^\/\\]|\\.)*\/[a-z]*|[A-Za-z_][\w.]*|\d+(?:\.\d+)?)/gy;
+    let m, i = 0;
+    while (i < src.length) {
+      re.lastIndex = i;
+      m = re.exec(src);
+      if (!m) { if (!src.slice(i).trim()) break; throw new Error('Unexpected character at position ' + i + ': "' + src[i] + '"'); }
+      out.push(m[1]); i = re.lastIndex;
+    }
+    return out;
+  }
+
+  function parseRule(src) {
+    const t = tokenize(src);
+    let p = 0;
+    const peek = () => t[p];
+    const eat = (v) => { if (t[p] !== v) throw new Error('Expected ' + v + ' but found ' + (t[p] || 'end of expression')); return t[p++]; };
+
+    function expr() { let n = term(); while (peek() === 'or') { p++; n = { op: 'or', l: n, r: term() }; } return n; }
+    function term() { let n = unary(); while (peek() === 'and') { p++; n = { op: 'and', l: n, r: unary() }; } return n; }
+    function unary() { if (peek() === 'not') { p++; return { op: 'not', v: unary() }; } return atom(); }
+    function atom() {
+      if (peek() === '(') { p++; const n = expr(); eat(')'); return n; }
+      const left = value();
+      const op = peek();
+      if (['>', '<', '>=', '<=', '==', '!=', '=~'].includes(op)) { p++; return { op, l: left, r: value() }; }
+      return { op: 'truthy', v: left };
+    }
+    function value() {
+      const tok = t[p++];
+      if (tok == null) throw new Error('Unexpected end of expression');
+      if (/^"/.test(tok)) return { lit: tok.slice(1, -1) };
+      if (/^\//.test(tok)) { const i = tok.lastIndexOf('/'); return { re: new RegExp(tok.slice(1, i), tok.slice(i + 1)) }; }
+      if (/^\d/.test(tok)) return { lit: Number(tok) };
+      if (tok === 'true') return { lit: true };
+      if (tok === 'false') return { lit: false };
+      return { field: tok };
+    }
+    const ast = expr();
+    if (p !== t.length) throw new Error('Unexpected trailing input: ' + t.slice(p).join(' '));
+    return ast;
+  }
+
+  function evalRule(ast, ctx) {
+    const get = (n) => {
+      if (n.field != null) return n.field.split('.').reduce((o, k) => (o == null ? undefined : o[k]), ctx);
+      if (n.re != null) return n.re;
+      return n.lit;
+    };
+    switch (ast.op) {
+      case 'and': return !!(evalRule(ast.l, ctx) && evalRule(ast.r, ctx));
+      case 'or': return !!(evalRule(ast.l, ctx) || evalRule(ast.r, ctx));
+      case 'not': return !evalRule(ast.v, ctx);
+      case 'truthy': { const v = get(ast.v); return !!v; }
+      case '=~': { const v = get(ast.l), r = get(ast.r); return r instanceof RegExp ? r.test(String(v == null ? '' : v)) : String(v).includes(String(r)); }
+      default: {
+        const a = get(ast.l), b = get(ast.r);
+        if (a === undefined || a === null) return false;
+        switch (ast.op) {
+          case '>': return a > b; case '<': return a < b;
+          case '>=': return a >= b; case '<=': return a <= b;
+          case '==': return a == b; case '!=': return a != b;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Shipped rules. Each names the ATT&CK technique it evidences, so the
+  // matrix is populated by what actually fired, never by decoration.
+  const DEFAULT_RULES = [
+    { id: 'R-001', name: 'High-entropy algorithmic domain', expr: 'dga > 0.6 and tld_risk > 0.5', severity: 'high', technique: 'T1568.002', enabled: true },
+    { id: 'R-002', name: 'Credential-theft vocabulary in hostname', expr: 'phish_words >= 2 and type == "domain"', severity: 'high', technique: 'T1566.002', enabled: true },
+    { id: 'R-003', name: 'Executable delivered over cleartext HTTP', expr: 'risky_extension and scheme == "http"', severity: 'critical', technique: 'T1105', enabled: true },
+    { id: 'R-004', name: 'Bare IP address used as web host', expr: 'ip_host and type == "url"', severity: 'medium', technique: 'T1071.001', enabled: true },
+    { id: 'R-005', name: 'Homograph or punycode hostname', expr: 'homograph_flags >= 1', severity: 'high', technique: 'T1583.001', enabled: true },
+    { id: 'R-006', name: 'Recently published CVE referenced', expr: 'type == "cve" and cve_age <= 1', severity: 'medium', technique: 'T1588.006', enabled: true },
+    { id: 'R-007', name: 'Composite risk above triage threshold', expr: 'risk >= 85', severity: 'critical', technique: 'T1071', enabled: true },
+    { id: 'R-008', name: 'Non-standard port on external host', expr: 'nonstandard_port and type == "url"', severity: 'medium', technique: 'T1571', enabled: true },
+  ];
+
+  const EVENT_RULES = [
+    { id: 'R-101', name: 'Authentication brute force', severity: 'high', technique: 'T1110',
+      describe: (h) => h.count + ' failed authentications from ' + h.ip + (h.windowMs ? ' within 4 minutes' : ' in the supplied window') },
+    { id: 'R-102', name: 'Outbound transfer far above baseline', severity: 'high', technique: 'T1041',
+      describe: (t) => formatBytes(t.bytesOut) + ' to ' + (t.dst || 'an external host') + ' — ' + t.z + ' sigma above the mean of this dataset' },
+  ];
+
+  /** Build the evaluation context for one indicator. Field names here are the
+   *  identifiers analysts type into rules. */
+  function ruleContext(ind, scored) {
+    const type = ind.type, value = ind.value;
+    const host = type === 'url' ? (urlInfo(value).host || '') : type === 'email' ? value.split('@')[1] : value;
+    const parts = host && host.includes('.') ? domainParts(host) : null;
+    const u = type === 'url' ? urlInfo(value) : {};
+    const dga = parts ? dgaScore(parts.sld) : { score: 0 };
+    return {
+      type, value, host,
+      risk: scored.risk, confidence: scored.confidence, severity: scored.severity,
+      dga: dga.score,
+      tld: parts ? parts.tld : '',
+      tld_risk: parts ? (TLD_RISK[parts.tld] != null ? TLD_RISK[parts.tld] : TLD_RISK_DEFAULT) : 0,
+      entropy: parts ? shannonEntropy(parts.sld) : shannonEntropy(value),
+      phish_words: keywordHits(host || value).length,
+      homograph_flags: homograph(host || value).length,
+      subdomain_depth: parts ? parts.depth : 0,
+      scheme: u.scheme || '', ip_host: !!u.ipHost, risky_extension: !!u.riskyExtension,
+      nonstandard_port: !!u.nonStandardPort, has_credentials: !!u.hasCredentials,
+      cve_age: type === 'cve' ? cveInfo(value).age : null,
+      length: value.length,
+    };
+  }
+
+  function runRules(rules, indicators, scores) {
+    const alerts = [];
+    rules.filter((r) => r.enabled).forEach((rule) => {
+      let ast;
+      try { ast = parseRule(rule.expr); }
+      catch (e) { alerts.push({ ruleError: true, rule: rule.id, message: e.message }); return; }
+      indicators.forEach((ind, i) => {
+        const ctx = ruleContext(ind, scores[i]);
+        let hit = false;
+        try { hit = evalRule(ast, ctx); } catch (_) { hit = false; }
+        if (hit) {
+          alerts.push({
+            ruleId: rule.id, rule: rule.name, severity: rule.severity, technique: rule.technique,
+            indicator: ind.value, type: ind.type,
+            risk: scores[i].risk, confidence: scores[i].confidence,
+            reasons: scores[i].factors.filter((f) => f.delta > 0).map((f) => f.label + ': ' + f.detail + ' (+' + f.delta + ')'),
+            expr: rule.expr,
+          });
+        }
+      });
+    });
+    return alerts;
+  }
+
+  function runEventRules(analysis) {
+    const alerts = [];
+    analysis.bruteForce.forEach((h) => {
+      const r = EVENT_RULES[0];
+      alerts.push({ ruleId: r.id, rule: r.name, severity: r.severity, technique: r.technique,
+        indicator: h.ip, type: 'ipv4', risk: clamp(55 + h.count * 3, 0, 96), confidence: 78,
+        reasons: [r.describe(h)], expr: 'auth_failures_4m >= 5' });
+    });
+    analysis.transfers.slice(0, 25).forEach((t) => {
+      const r = EVENT_RULES[1];
+      alerts.push({ ruleId: r.id, rule: r.name, severity: t.z >= 5 ? 'critical' : r.severity, technique: r.technique,
+        indicator: t.dst || t.src || 'unknown', type: 'ipv4',
+        risk: clamp(Math.round(55 + t.z * 7), 0, 98), confidence: clamp(Math.round(50 + t.z * 6), 0, 95),
+        reasons: [r.describe(t)], expr: 'zscore(bytes_out) >= 3' });
+    });
+    return alerts;
+  }
+
+  /* ── graph ─────────────────────────────────────────────────────────── */
+
+  function buildGraph(indicators, events) {
+    const nodes = new Map();
+    const edges = [];
+    const node = (id, kind, meta) => {
+      if (!nodes.has(id)) nodes.set(id, { id, kind, ...(meta || {}) });
+      else if (meta) Object.assign(nodes.get(id), meta);
+      return nodes.get(id);
+    };
+    const edge = (a, b, rel) => {
+      if (!a || !b || a === b) return;
+      const key = a + '|' + b + '|' + rel;
+      if (!edges.some((e) => e.key === key)) edges.push({ key, src: a, dst: b, rel });
+    };
+
+    indicators.forEach((i) => {
+      node(i.value, i.type === 'ipv4' ? 'ip' : i.type, { risk: i.risk, severity: i.severity });
+      if (i.type === 'url') {
+        const h = urlInfo(i.value).host;
+        if (h) { node(h, ipClassify(h).valid ? 'ip' : 'domain', {}); edge(i.value, h, 'hosted_on'); }
+      }
+      if (i.type === 'email') {
+        const h = i.value.split('@')[1];
+        if (h) { node(h, 'domain', {}); edge(i.value, h, 'sender_domain'); }
+      }
+    });
+
+    (events || []).forEach((e) => {
+      if (e.src) node(e.src, ipClassify(e.src).routable === false ? 'host' : 'ip', {});
+      if (e.dst) node(e.dst, ipClassify(e.dst).valid ? 'ip' : 'domain', {});
+      if (e.user) node(e.user, 'account', {});
+      if (e.src && e.dst) edge(e.src, e.dst, e.type === 'DNS' ? 'resolved' : 'communicated_with');
+      if (e.src && e.user) edge(e.src, e.user, 'authenticated_as');
+    });
+
+    return { nodes: Array.from(nodes.values()), edges };
+  }
+
+  /* ── exports ───────────────────────────────────────────────────────── */
+
+  function formatBytes(n) {
+    if (!n) return '0 B';
+    const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.min(u.length - 1, Math.floor(Math.log(n) / Math.log(1024)));
+    return round(n / Math.pow(1024, i), 1) + ' ' + u[i];
+  }
+
+  const STIX_TYPE = { ipv4: 'ipv4-addr:value', domain: 'domain-name:value', url: 'url:value',
+    sha256: "file:hashes.'SHA-256'", sha1: "file:hashes.'SHA-1'", md5: 'file:hashes.MD5',
+    email: 'email-addr:value' };
+
+  function toStix(indicators, meta) {
+    const now = new Date().toISOString();
+    const objects = indicators.filter((i) => STIX_TYPE[i.type]).map((i, n) => ({
+      type: 'indicator',
+      spec_version: '2.1',
+      id: 'indicator--' + uuidFrom(i.type + i.value),
+      created: new Date(i.firstSeen || Date.now()).toISOString(),
+      modified: new Date(i.lastSeen || Date.now()).toISOString(),
+      name: i.type.toUpperCase() + ' ' + i.value,
+      description: (i.factors || []).map((f) => f.label + ': ' + f.detail).join(' | '),
+      indicator_types: ['malicious-activity'],
+      pattern: '[' + STIX_TYPE[i.type] + " = '" + i.value.replace(/'/g, "\\'") + "']",
+      pattern_type: 'stix',
+      valid_from: new Date(i.firstSeen || Date.now()).toISOString(),
+      confidence: i.confidence,
+      labels: [i.severity, 'risk-' + i.risk],
+    }));
+    return {
+      type: 'bundle',
+      id: 'bundle--' + uuidFrom('skyrecon' + now),
+      objects: [{ type: 'identity', spec_version: '2.1', id: 'identity--' + uuidFrom('skyrecon'),
+                  created: now, modified: now, name: (meta && meta.producer) || 'SkyRecon', identity_class: 'system' }, ...objects],
+    };
+  }
+
+  // Deterministic UUIDv4-shaped id from a string (FNV-1a x4). Same input,
+  // same id — so re-exporting the same indicator does not churn ids.
+  function uuidFrom(str) {
+    const h = [0x811c9dc5, 0x01000193, 0x811c9dc5 ^ 0x5bf03635, 0x9e3779b9];
+    for (let i = 0; i < str.length; i++) {
+      for (let k = 0; k < 4; k++) {
+        h[k] ^= str.charCodeAt(i) + k;
+        h[k] = Math.imul(h[k], 0x01000193) >>> 0;
+      }
+    }
+    const hex = h.map((x) => x.toString(16).padStart(8, '0')).join('');
+    return [hex.slice(0, 8), hex.slice(8, 12), '4' + hex.slice(13, 16),
+            ((parseInt(hex[16], 16) & 0x3 | 0x8).toString(16)) + hex.slice(17, 20), hex.slice(20, 32)].join('-');
+  }
+
+  function toCsv(rows, columns) {
+    const esc = (v) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    return [columns.join(','), ...rows.map((r) => columns.map((c) => esc(r[c])).join(','))].join('\n');
+  }
+
+  return {
+    // maths
+    shannonEntropy, mean, stddev, zscore, round, clamp, formatBytes,
+    // parsing
+    refang, extract, ipClassify, domainParts, parseTimestamp, parseLogs,
+    // enrichment
+    dgaScore, homograph, keywordHits, urlInfo, hashInfo, cveInfo,
+    scoreIndicator, severityFor, decayConfidence,
+    // detection
+    tokenize, parseRule, evalRule, ruleContext, runRules, runEventRules,
+    analyseEvents, buildGraph,
+    DEFAULT_RULES, EVENT_RULES, TLD_RISK, TLDS,
+    // export
+    toStix, toCsv, uuidFrom,
+  };
+});
+</script>
+<script>
+(function(){
+'use strict';
+const S = window.SkyRecon;
+const $=(s,r)=>(r||document).querySelector(s), $$=(s,r)=>Array.from((r||document).querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Number(n||0).toLocaleString('en-US');
+const SEVC={critical:'#e73b0d',high:'#c1381a',medium:'#fbc856',low:'#7f9e6a'};
+const SEVT={critical:'t-crit',high:'t-high',medium:'t-med',low:'t-low'};
+
+/* ── workspace: the analyst's own data, nothing pre-loaded ───────────── */
+const WS = { indicators:[], alerts:[], events:[], rules:S.DEFAULT_RULES.map(r=>({...r})), ingests:[], meta:{created:null} };
+let DB=null, storeMode='local', dirty=false;
+
+function lsGet(k,d){ try{ const v=localStorage.getItem('skyrecon.'+k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function lsSet(k,v){ try{ localStorage.setItem('skyrecon.'+k, JSON.stringify(v)); }catch(e){} }
+
+async function initStore(){
+  try { DB = await claude.use('db'); } catch(e){ DB=null; }
+  if (DB){
+    storeMode='cloud';
+    try{
+      const snap = await DB.doc('store/workspace').get();
+      if (snap.exists && snap.data){
+        const d = snap.data;
+        WS.indicators = d.indicators||[]; WS.alerts = d.alerts||[]; WS.events = d.events||[];
+        WS.rules = (d.rules&&d.rules.length)?d.rules:WS.rules; WS.ingests = d.ingests||[]; WS.meta = d.meta||WS.meta;
+      }
+      DB.doc('store/workspace').onSnapshot(snap=>{
+        if(!snap.exists||!snap.data||snap.hasPendingWrites) return;
+        const d=snap.data;
+        if((d.rev||0) > (WS.meta.rev||0)){
+          WS.indicators=d.indicators||[]; WS.alerts=d.alerts||[]; WS.events=d.events||[];
+          WS.rules=d.rules||WS.rules; WS.ingests=d.ingests||[]; WS.meta=d.meta||WS.meta;
+          render(); toast('Workspace updated from another session');
+        }
+      }, ()=>{});
+    }catch(e){ storeMode='local'; }
+  }
+  if (storeMode==='local'){
+    const d = lsGet('workspace', null);
+    if (d){ WS.indicators=d.indicators||[]; WS.alerts=d.alerts||[]; WS.events=d.events||[];
+            WS.rules=(d.rules&&d.rules.length)?d.rules:WS.rules; WS.ingests=d.ingests||[]; WS.meta=d.meta||WS.meta; }
+  }
+  paintStore();
+  render();
+}
+function paintStore(){
+  const p=$('#storePill');
+  const n=WS.indicators.length;
+  if(storeMode==='cloud') p.innerHTML='<i class="dot"></i><span>workspace store · '+n+' IOC</span>';
+  else p.innerHTML='<i class="dot warn"></i><span>this browser only · '+n+' IOC</span>';
+}
+let saveTimer=null;
+function persist(){
+  WS.meta.rev=(WS.meta.rev||0)+1; WS.meta.updated=Date.now();
+  if(!WS.meta.created) WS.meta.created=Date.now();
+  paintStore();
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async ()=>{
+    // keep the document inside the 256KB cap: newest first, bounded
+    const payload={
+      indicators:WS.indicators.slice(0,600),
+      alerts:WS.alerts.slice(0,400),
+      events:WS.events.slice(0,400).map(e=>({ts:e.ts,type:e.type,src:e.src,dst:e.dst,user:e.user,bytesOut:e.bytesOut,outcome:e.outcome,status:e.status})),
+      rules:WS.rules, ingests:WS.ingests.slice(0,40), meta:WS.meta
+    };
+    if(storeMode==='cloud'&&DB){
+      try{ await DB.doc('store/workspace').set(payload); }
+      catch(e){ storeMode='local'; lsSet('workspace',payload); paintStore(); toast('Cloud store unavailable — saved in this browser'); }
+    } else lsSet('workspace',payload);
+  },600);
+}
+
+/* ── ingest pipeline: everything below is computed from analyst input ── */
+function ingest(text, source, label){
+  const t0=performance.now();
+  const ex = S.extract(text);
+  const logs = S.parseLogs(text);
+  const now = Date.now();
+
+  // merge indicators, tracking first/last seen and true sighting counts
+  let added=0, updated=0;
+  ex.indicators.forEach(item=>{
+    const key=item.type+'|'+item.value.toLowerCase();
+    let rec=WS.indicators.find(r=>r.key===key);
+    if(rec){ rec.sightings+=item.count; rec.lastSeen=now; rec.sources=Array.from(new Set([...(rec.sources||[]),source])); updated++; }
+    else { rec={key,type:item.type,value:item.value,sightings:item.count,firstSeen:now,lastSeen:now,sources:[source],benign:false};
+           WS.indicators.push(rec); added++; }
+    const sc=S.scoreIndicator({type:rec.type,value:rec.value},{source,sightings:rec.sightings});
+    rec.risk=rec.benign?0:sc.risk; rec.confidence=sc.confidence; rec.severity=rec.benign?'low':sc.severity; rec.factors=sc.factors;
+  });
+
+  // events from any log lines present in the same paste
+  if(logs.events.length){
+    logs.events.forEach(e=>WS.events.unshift(e));
+    WS.events=WS.events.slice(0,2000);
+  }
+
+  // rules run over the whole workspace so scores stay consistent
+  recomputeAlerts();
+
+  const rec={id:'ING-'+(WS.ingests.length+1).toString().padStart(3,'0'),at:now,source,label:label||'pasted input',
+    chars:text.length, extracted:ex.indicators.length, dropped:ex.dropped.length, added, updated,
+    logLines:logs.lineCount, parsedEvents:logs.events.length, unparsed:logs.unparsed.length,
+    formats:Object.keys(logs.formats), ms:Math.round(performance.now()-t0)};
+  WS.ingests.unshift(rec);
+  persist();
+  return {rec, ex, logs};
+}
+
+function recomputeAlerts(){
+  const live=WS.indicators.filter(i=>!i.benign);
+  const scores=live.map(i=>({risk:i.risk,confidence:i.confidence,severity:i.severity,factors:i.factors||[]}));
+  const iocAlerts=S.runRules(WS.rules, live.map(i=>({type:i.type,value:i.value})), scores).filter(a=>!a.ruleError);
+  const analysis=WS.events.length?S.analyseEvents(WS.events):{bruteForce:[],transfers:[],rareDest:[],hosts:{},stats:{}};
+  const evAlerts=S.runEventRules(analysis);
+  const stamp=Date.now();
+  const merged=[...iocAlerts,...evAlerts].map((a,i)=>{
+    const prev=WS.alerts.find(p=>p.ruleId===a.ruleId&&p.indicator===a.indicator);
+    return {...a, id:prev?prev.id:'ALT-'+(stamp%100000)+'-'+i, at:prev?prev.at:stamp,
+            status:prev?prev.status:'open', note:prev?prev.note:''};
+  });
+  WS.alerts=merged.sort((a,b)=>({critical:0,high:1,medium:2,low:3})[a.severity]-({critical:0,high:1,medium:2,low:3})[b.severity]||b.risk-a.risk);
+  WS.analysis=analysis;
+}
+
+/* ── icons / logo ─────────────────────────────────────────────────────── */
+function logoSvg(size){
+  const s=size||28;
+  return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 40 40" fill="none" aria-hidden="true">'+
+   '<defs><linearGradient id="lv" x1="0" y1="40" x2="40" y2="0">'+
+   '<stop offset="0" stop-color="#6d1308"/><stop offset=".5" stop-color="#a71d08"/><stop offset="1" stop-color="#e73b0d"/></linearGradient>'+
+   '<linearGradient id="lv2" x1="20" y1="34" x2="20" y2="8"><stop offset="0" stop-color="#e73b0d"/><stop offset="1" stop-color="#fbc856"/></linearGradient></defs>'+
+   '<rect x="1.2" y="1.2" width="37.6" height="37.6" rx="9" fill="#100808" stroke="url(#lv)" stroke-width="1.6"/>'+
+   '<path d="M8 26.5c3.4-6.6 8-9.9 12-9.9s8.6 3.3 12 9.9" stroke="#a71d08" stroke-width="1.5" stroke-linecap="round" opacity=".55"/>'+
+   '<path d="M11.5 28.5c2.6-4.6 5.6-6.9 8.5-6.9s5.9 2.3 8.5 6.9" stroke="#a71d08" stroke-width="1.5" stroke-linecap="round" opacity=".8"/>'+
+   '<path d="M20 6.5 24.6 19l-3.1-1.2 1.4 7.4-5.6-8.3 3 .6L20 6.5Z" fill="url(#lv2)"/>'+
+   '<circle cx="20" cy="30.5" r="2.1" fill="#fbc856"/></svg>';
+}
+const IC={
+ ingest:'<path d="M8 1.8v8.6M4.8 7.4 8 10.6l3.2-3.2"/><path d="M2 10.6v2.2a1.4 1.4 0 0 0 1.4 1.4h9.2a1.4 1.4 0 0 0 1.4-1.4v-2.2"/>',
+ grid:'<rect x="1.8" y="1.8" width="5" height="5" rx="1"/><rect x="9.2" y="1.8" width="5" height="5" rx="1"/><rect x="1.8" y="9.2" width="5" height="5" rx="1"/><rect x="9.2" y="9.2" width="5" height="5" rx="1"/>',
+ ioc:'<circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2.3"/>',
+ alert:'<path d="M8 2 14.5 13.5h-13L8 2Z"/><path d="M8 6.4v3.2M8 11.6v.1"/>',
+ graph:'<circle cx="3.4" cy="4" r="1.8"/><circle cx="12.6" cy="3.4" r="1.8"/><circle cx="8" cy="12.4" r="1.8"/><path d="M4.9 5.2 7 10.8M11.4 4.9 9.2 11"/>',
+ tele:'<path d="M1.6 10.4h2.8L6 5.2l2.6 7.2 1.8-4.2h4"/>',
+ hex:'<path d="M8 1.6 13.6 4.8v6.4L8 14.4 2.4 11.2V4.8L8 1.6Z"/>',
+ rule:'<rect x="2.6" y="1.8" width="10.8" height="12.4" rx="1.6"/><path d="M5.2 5.4h5.6M5.2 8h5.6M5.2 10.6h3.4"/>',
+ out:'<path d="M8 14.2V5.6M4.8 8.8 8 5.6l3.2 3.2"/><path d="M2 3.4h12"/>',
+ gear:'<circle cx="8" cy="8" r="2.4"/><path d="M8 1.6v2M8 12.4v2M1.6 8h2M12.4 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M12.5 3.5l-1.4 1.4M4.9 11.1l-1.4 1.4"/>',
+};
+const svg=k=>'<svg viewBox="0 0 16 16">'+IC[k]+'</svg>';
+
+/* ── navigation ───────────────────────────────────────────────────────── */
+const NAV=[
+ ['ANALYSE',[['ingest','Ingest','ingest'],['overview','Overview','grid'],['indicators','Indicators','ioc'],['alerts','Alerts','alert']]],
+ ['INVESTIGATE',[['graph','Entity graph','graph'],['telemetry','Telemetry','tele'],['attack','ATT&CK','hex']]],
+ ['CONFIGURE',[['rules','Detection rules','rule'],['export','Export','out'],['workspace','Workspace','gear']]],
+];
+const META={
+ ingest:['Ingest','Paste a threat report, an IOC list or raw logs — everything downstream is computed from it'],
+ overview:['Overview','Live totals for the indicators and alerts in this workspace'],
+ indicators:['Indicators','Every indicator you have ingested, with the arithmetic behind its score'],
+ alerts:['Alerts','Raised by detection rules evaluating your data — nothing is pre-seeded'],
+ graph:['Entity graph','Relationships observed in what you ingested'],
+ telemetry:['Telemetry','Parsed log events and the statistics derived from them'],
+ attack:['MITRE ATT&CK','Techniques evidenced by rules that actually fired'],
+ rules:['Detection rules','Expression rules parsed by recursive descent — never eval()'],
+ export:['Export','STIX 2.1 and CSV built from this workspace'],
+ workspace:['Workspace','Storage, scoring reference and housekeeping'],
+};
+let view='ingest', selNode=null;
+
+function buildNav(){
+  const counts={indicators:WS.indicators.length,alerts:WS.alerts.length,
+                telemetry:WS.events.length,rules:WS.rules.filter(r=>r.enabled).length};
+  $('#nav').innerHTML=NAV.map(([g,items])=>'<div class="nav-g">'+g+'</div>'+items.map(([k,l,ic])=>{
+    const c=counts[k];
+    const crit=k==='alerts'&&WS.alerts.some(a=>a.severity==='critical');
+    return '<div class="nav-i'+(view===k?' on':'')+'" data-v="'+k+'">'+svg(ic)+'<span>'+l+'</span>'+
+      (c!=null&&c>0?'<span class="nav-c'+(crit?' hot':'')+'">'+c+'</span>':'')+'</div>';
+  }).join('')).join('');
+  $$('.nav-i').forEach(n=>n.onclick=()=>go(n.dataset.v));
+  $('#brandMark').innerHTML=logoSvg(28)+'<div><div class="brand-n">SKYRECON</div><div class="brand-s">THREAT OPS</div></div>';
+}
+function go(v){ view=v; render(); }
+function render(){
+  buildNav(); paintStore();
+  $('#ptitle').textContent=META[view][0];
+  $('#psub').textContent='· '+META[view][1];
+  $('#topActions').innerHTML = WS.indicators.length||WS.events.length
+    ? '<button class="btn sm" id="reRun">Re-run rules</button><button class="btn sm" id="quickIngest">+ Ingest</button>'
+    : '';
+  $('#canvas').innerHTML=V[view]();
+  requestAnimationFrame(()=>$$('[data-w]').forEach(el=>el.style.width=Math.max(0,Math.min(100,+el.dataset.w))+'%'));
+  wire();
+  if(INIT[view]) INIT[view]();
+}
+
+/* ── views ────────────────────────────────────────────────────────────── */
+const V={};
+const emptyState=(title,body,cta)=>'<div class="empty">'+
+  '<svg viewBox="0 0 24 24"><path d="M12 3 21 8v8l-9 5-9-5V8l9-5Z"/><path d="M12 12v5M12 8.5v.6"/></svg>'+
+  '<h4>'+title+'</h4><p>'+body+'</p>'+(cta||'')+'</div>';
+
+V.ingest=()=>`
+  <div class="ing">
+    <div class="pan">
+      <div class="pan-h"><h3>Source material</h3>
+        <div class="seg" id="srcSeg">
+          <b class="on" data-s="report">Threat report</b><b data-s="feed:community">IOC list</b><b data-s="log">Raw logs</b>
+        </div>
+      </div>
+      <div class="pan-b">
+        <textarea class="paste" id="pasteBox" spellcheck="false" placeholder="Paste anything here — a vendor write-up, an email header block, a CSV of indicators, an ssh auth.log, nginx access lines, or JSON events.
+
+Defanged input is understood: hxxp://, [.], [:], (dot) all get refanged before parsing.
+Private RFC1918 addresses, documentation ranges and known-benign domains are filtered out and listed so you can see what was excluded."></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn pri" id="runIngest">Analyse</button>
+          <button class="btn" id="loadSample">Load a worked example</button>
+          <button class="btn" id="clearBox">Clear</button>
+          <span class="hint" id="charCount" style="margin-left:auto">0 characters</span>
+        </div>
+        <div class="drop" id="dropZone" style="margin-top:10px">Drop a .txt, .log, .csv or .json file here to read it into the box</div>
+      </div>
+    </div>
+    <div>
+      <div class="pan"><div class="pan-h"><h3>What this does</h3></div><div class="pan-b mini-doc">
+        <p>Text is refanged, then indicators are extracted with typed patterns and validated — a TLD that does not exist is not a domain, and <code>report.pdf</code> never becomes one.</p>
+        <p>Each survivor is scored from measurable properties: Shannon entropy, natural-bigram share, TLD abuse weighting, credential-theft vocabulary, homograph characters, URL shape. Every point of the score is itemised.</p>
+        <p>Log lines in the same paste are parsed separately, and behavioural findings — brute force in a real 4-minute window, transfers above a z-score of 3 — come from statistics over <em>your</em> data, not a fixed baseline.</p>
+      </div></div>
+      <div style="height:12px"></div>
+      <div class="pan"><div class="pan-h"><h3>Recent ingests</h3><span class="hint">${WS.ingests.length}</span></div>
+        <div class="pan-b">${WS.ingests.length?WS.ingests.slice(0,6).map(i=>`
+          <div class="list-row"><span class="lname2">${esc(i.label)}<div class="hint">${i.extracted} extracted · ${i.parsedEvents} events · ${i.ms}ms</div></span>
+          <span class="lmeta">${rel(i.at)}</span></div>`).join('')
+          :'<div class="hint" style="padding:6px 0">Nothing ingested yet.</div>'}</div>
+      </div>
+    </div>
+  </div>
+  <div id="ingestResult"></div>`;
+
+V.overview=()=>{
+  if(!WS.indicators.length&&!WS.events.length)
+    return emptyState('Nothing analysed yet',
+      'This console has no built-in data. Paste a threat report or a log excerpt on the Ingest screen and every panel here fills from it.',
+      '<button class="btn pri" data-goto="ingest">Go to Ingest</button>');
+  const sev=['critical','high','medium','low'].map(s=>({s,n:WS.indicators.filter(i=>i.severity===s&&!i.benign).length}));
+  const tot=WS.indicators.filter(i=>!i.benign).length||1;
+  const byType={}; WS.indicators.forEach(i=>byType[i.type]=(byType[i.type]||0)+1);
+  const tlds={}; WS.indicators.filter(i=>i.type==='domain'||i.type==='url').forEach(i=>{
+    const h=i.type==='url'?(S.urlInfo(i.value).host||''):i.value; if(!h)return;
+    const t=S.domainParts(h).tld; tlds[t]=(tlds[t]||0)+1; });
+  const topTld=Object.entries(tlds).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const tech={}; WS.alerts.forEach(a=>tech[a.technique]=(tech[a.technique]||0)+1);
+  const topTech=Object.entries(tech).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxTech=topTech.length?topTech[0][1]:1;
+  const st=(WS.analysis&&WS.analysis.stats)||{};
+  const M=[
+   ['INDICATORS',fmt(WS.indicators.length),WS.indicators.filter(i=>i.benign).length+' marked benign'],
+   ['ALERTS',fmt(WS.alerts.length),WS.alerts.filter(a=>a.status==='open').length+' open'],
+   ['CRITICAL',fmt(WS.alerts.filter(a=>a.severity==='critical').length),'rule-confirmed'],
+   ['EVENTS PARSED',fmt(WS.events.length),st.bytesMean?('mean '+S.formatBytes(st.bytesMean)+' out'):'no byte data'],
+   ['RULES ENABLED',WS.rules.filter(r=>r.enabled).length+'/'+WS.rules.length,'expression engine'],
+   ['INGESTS',fmt(WS.ingests.length),WS.ingests[0]?('last '+rel(WS.ingests[0].at)):'—'],
+  ];
+  return `<div class="strip">${M.map(m=>`<div class="mt"><div class="mt-l">${m[0]}</div><div class="mt-v">${m[1]}</div><div class="mt-s">${m[2]}</div></div>`).join('')}</div>
+  <div class="grid g21">
+    <div class="pan"><div class="pan-h"><h3>Risk distribution</h3><span class="hint">${tot} SCORED</span></div>
+      <div class="pan-b">${histogram()}</div></div>
+    <div class="pan"><div class="pan-h"><h3>Severity split</h3></div><div class="pan-b">
+      ${sev.map(x=>`<div class="brow"><div class="bl"><span style="text-transform:capitalize">${x.s}</span><span>${x.n} · ${Math.round(x.n/tot*100)}%</span></div>
+      <div class="bar"><i data-w="${Math.round(x.n/tot*100)}" style="background:${SEVC[x.s]}"></i></div></div>`).join('')}
+    </div></div>
+  </div>
+  <div class="grid g111">
+    <div class="pan"><div class="pan-h"><h3>Highest risk</h3></div><div class="pan-b">
+      ${WS.indicators.filter(i=>!i.benign).sort((a,b)=>b.risk-a.risk).slice(0,6).map(i=>`
+      <div class="list-row" data-ioc="${esc(i.key)}"><span class="sevbar" style="background:${SEVC[i.severity]}"></span>
+      <span class="lname2 mono" style="font-size:11.5px">${esc(trunc(i.value,26))}</span><span class="lmeta">${i.risk}</span></div>`).join('')||noneYet()}
+    </div></div>
+    <div class="pan"><div class="pan-h"><h3>Indicator types</h3></div><div class="pan-b">
+      ${Object.entries(byType).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`
+      <div class="brow"><div class="bl"><span class="mono" style="font-size:11.5px">${t.toUpperCase()}</span><span>${n}</span></div>
+      <div class="bar"><i data-w="${Math.round(n/WS.indicators.length*100)}" style="background:var(--lava)"></i></div></div>`).join('')||noneYet()}
+    </div></div>
+    <div class="pan"><div class="pan-h"><h3>ATT&CK techniques</h3><span class="hint">FROM FIRED RULES</span></div><div class="pan-b">
+      ${topTech.map(([t,n])=>`<div class="brow"><div class="bl"><span class="mono" style="font-size:11.5px">${t}</span><span>${n}</span></div>
+      <div class="bar"><i data-w="${Math.round(n/maxTech*100)}" style="background:var(--gold)"></i></div></div>`).join('')||noneYet('No rules have fired yet.')}
+    </div></div>
+  </div>
+  ${topTld.length?`<div class="pan"><div class="pan-h"><h3>TLD spread</h3><span class="hint">ABUSE WEIGHTING APPLIED AT SCORE TIME</span></div><div class="pan-b">
+    <div class="chips">${topTld.map(([t,n])=>{const w=S.TLD_RISK[t]!=null?S.TLD_RISK[t]:0.4;
+      return `<span class="chip">.${t} <b class="mono" style="color:${w>=.7?'#ff9377':w>=.5?'var(--gold)':'var(--moss)'}">${n} · w${w}</b></span>`;}).join('')}</div>
+  </div></div>`:''}`;
+};
+
+function histogram(){
+  const buckets=Array.from({length:10},()=>0);
+  WS.indicators.filter(i=>!i.benign).forEach(i=>buckets[Math.min(9,Math.floor(i.risk/10))]++);
+  const max=Math.max(1,...buckets);
+  return '<div style="display:flex;align-items:flex-end;gap:5px;height:150px">'+buckets.map((n,i)=>{
+    const h=Math.round(n/max*128), c=i>=8?'#e73b0d':i>=6?'#c1381a':i>=4?'#fbc856':'#7f9e6a';
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px" title="${n} indicator(s) scoring ${i*10}-${i*10+9}">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:${n?'#bfa79f':'#5c4239'}">${n||''}</div>
+      <div style="width:100%;height:${h}px;background:${c};border-radius:2px 2px 0 0;opacity:${n?1:.18};min-height:2px"></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:8.5px;color:#8b6a61">${i*10}</div></div>`;
+  }).join('')+'</div>';
+}
+const noneYet=(m)=>'<div class="hint" style="padding:8px 0">'+(m||'Nothing here yet.')+'</div>';
+const trunc=(s,n)=>s.length>n?s.slice(0,n-1)+'…':s;
+function rel(t){const m=(Date.now()-t)/6e4;return m<1?'just now':m<60?Math.round(m)+'m ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago';}
+
+V.indicators=()=>{
+  if(!WS.indicators.length) return emptyState('No indicators stored',
+    'Indicators appear here after you analyse source material. Each one keeps its first-seen and last-seen times, its sighting count and the full breakdown of how its score was reached.',
+    '<button class="btn pri" data-goto="ingest">Go to Ingest</button>');
+  const types=['all',...Array.from(new Set(WS.indicators.map(i=>i.type)))];
+  const f=state.iocType||'all';
+  const rows=WS.indicators.filter(i=>f==='all'||i.type===f).sort((a,b)=>b.risk-a.risk);
+  return `<div class="chips" style="margin-bottom:12px">${types.map(t=>`<span class="chip${f===t?' on':''}" data-ftype="${t}">${t.toUpperCase()} <b class="mono">${t==='all'?WS.indicators.length:WS.indicators.filter(i=>i.type===t).length}</b></span>`).join('')}</div>
+  <div class="pan"><div class="pan-h"><h3>Stored indicators</h3><span class="hint">CLICK A ROW FOR THE SCORE LEDGER</span></div>
+  <div class="pan-b flush"><div class="tw"><table>
+    <thead><tr><th>INDICATOR</th><th>TYPE</th><th>RISK</th><th>CONF</th><th>SIGHTINGS</th><th>SOURCES</th><th>FIRST SEEN</th><th>LAST SEEN</th></tr></thead>
+    <tbody>${rows.map(i=>`<tr data-ioc="${esc(i.key)}">
+      <td><span class="sevbar" style="background:${i.benign?'#5c4239':SEVC[i.severity]}"></span><span class="val">${esc(trunc(i.value,52))}</span>${i.benign?' <span class="tag t-mut">BENIGN</span>':''}</td>
+      <td class="mono hint">${i.type.toUpperCase()}</td>
+      <td><span class="rb"><u><i data-w="${i.risk}" style="background:${SEVC[i.severity]}"></i></u><b>${i.risk}</b></span></td>
+      <td class="mono">${S.decayConfidence(i.confidence,i.lastSeen,Date.now())}%</td>
+      <td class="mono">${i.sightings}</td>
+      <td class="hint">${(i.sources||[]).join(', ')}</td>
+      <td class="hint mono">${rel(i.firstSeen)}</td><td class="hint mono">${rel(i.lastSeen)}</td></tr>`).join('')}
+    </tbody></table></div></div></div>`;
+};
+
+V.alerts=()=>{
+  if(!WS.alerts.length) return emptyState('No alerts',
+    WS.indicators.length?'Your indicators exist but no enabled rule matched them. Open Detection rules to see each expression and test it against the current workspace.'
+      :'Alerts are produced by detection rules evaluating indicators and log events you have ingested.',
+    WS.indicators.length?'<button class="btn pri" data-goto="rules">Open detection rules</button>':'<button class="btn pri" data-goto="ingest">Go to Ingest</button>');
+  return `<div class="pan"><div class="pan-h"><h3>Rule matches</h3><span class="hint">${WS.alerts.length} ALERTS FROM ${WS.rules.filter(r=>r.enabled).length} ENABLED RULES</span></div>
+  <div class="pan-b flush"><div class="tw"><table>
+  <thead><tr><th>SEV</th><th>RULE</th><th>INDICATOR</th><th>RISK</th><th>ATT&CK</th><th>STATUS</th></tr></thead><tbody>
+  ${WS.alerts.map(a=>`<tr data-alert="${esc(a.id)}">
+    <td><span class="sevbar" style="background:${SEVC[a.severity]}"></span><span class="tag ${SEVT[a.severity]}">${a.severity.toUpperCase()}</span></td>
+    <td>${esc(a.rule)}<div class="hint mono">${a.ruleId} · ${esc(a.expr)}</div></td>
+    <td><span class="val">${esc(trunc(a.indicator,40))}</span></td>
+    <td><span class="rb"><u><i data-w="${a.risk}" style="background:${SEVC[a.severity]}"></i></u><b>${a.risk}</b></span></td>
+    <td class="mono hint">${a.technique}</td>
+    <td><span class="tag ${a.status==='open'?'t-gold':'t-mut'}">${a.status}</span></td></tr>`).join('')}
+  </tbody></table></div></div></div>`;
+};
+
+V.graph=()=>{
+  const g=S.buildGraph(WS.indicators.filter(i=>!i.benign),WS.events);
+  if(!g.nodes.length) return emptyState('No entities to graph',
+    'The graph is built from relationships actually observed in your data — a URL to its host, a source address to the destination it contacted, an account to the host it authenticated on.',
+    '<button class="btn pri" data-goto="ingest">Go to Ingest</button>');
+
+  // deterministic tiered layout: kind decides the column, risk decides the order
+  const order=['zone','account','host','ip','domain','url','email','sha256','sha1','md5','cve'];
+  const cols={};
+  g.nodes.forEach(n=>{ (cols[n.kind]||(cols[n.kind]=[])).push(n); });
+  const kinds=Object.keys(cols).sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+  const W=980,H=430,pad=64;
+  const colX=kinds.length>1?kinds.map((k,i)=>pad+i*((W-pad*2)/(kinds.length-1))):[W/2];
+  const pos={};
+  kinds.forEach((k,ci)=>{
+    const list=cols[k].sort((a,b)=>(b.risk||0)-(a.risk||0)).slice(0,14);
+    list.forEach((n,i)=>{
+      const step=(H-90)/Math.max(1,list.length);
+      pos[n.id]={x:colX[ci], y:52+step*i+step/2, kind:k, node:n};
+    });
+  });
+  const KC={ip:'#e73b0d',domain:'#c1381a',url:'#a71d08',host:'#fbc856',account:'#8aa3c0',email:'#c1381a',
+            sha256:'#7f9e6a',sha1:'#7f9e6a',md5:'#7f9e6a',cve:'#fbc856',zone:'#8b6a61'};
+  const edges=g.edges.filter(e=>pos[e.src]&&pos[e.dst]).map(e=>{
+    const a=pos[e.src],b=pos[e.dst];
+    return `<g data-edge="${esc(e.src)}|${esc(e.dst)}"><line class="gedge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>
+      <text class="glab" x="${(a.x+b.x)/2}" y="${(a.y+b.y)/2-4}" text-anchor="middle">${e.rel}</text></g>`;}).join('');
+  const nodes=Object.values(pos).map(p=>{
+    const n=p.node, c=KC[p.kind]||'#8b6a61', r=n.risk>=85?17:n.risk>=65?15:13;
+    return `<g class="gnode${selNode===n.id?' on':''}" data-node="${esc(n.id)}" transform="translate(${p.x},${p.y})">
+      <circle class="ring" r="${r+8}" fill="none" stroke="${c}" stroke-opacity=".45"/>
+      <circle r="${r}" fill="#150807" stroke="${c}" stroke-width="1.5"/>
+      <circle r="${r-5}" fill="${c}" fill-opacity="${n.risk>=65?.35:.16}"/>
+      <text class="gname" y="${r+13}" text-anchor="middle">${esc(trunc(n.id,20))}</text>
+      <text class="gsub" y="${r+23}" text-anchor="middle">${p.kind}${n.risk!=null?' · '+n.risk:''}</text></g>`;}).join('');
+  const sel=selNode?g.nodes.find(n=>n.id===selNode):null;
+  const nbrs=sel?g.edges.filter(e=>e.src===sel.id||e.dst===sel.id):[];
+  return `<div class="grid" style="grid-template-columns:1fr 280px;gap:12px">
+    <div class="pan"><div class="pan-h"><h3>Observed relationships</h3>
+      <span class="hint">${g.nodes.length} ENTITIES · ${g.edges.length} EDGES</span></div>
+      <div class="gwrap"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${edges}${nodes}</svg>
+        <div style="position:absolute;left:12px;bottom:10px;background:rgba(19,8,7,.85);border:1px solid var(--line-soft);border-radius:6px;padding:6px 9px;display:flex;gap:11px;flex-wrap:wrap">
+          ${kinds.map(k=>`<span class="hint" style="display:inline-flex;align-items:center;gap:5px"><i style="width:7px;height:7px;border-radius:2px;background:${KC[k]||'#8b6a61'};display:inline-block"></i>${k.toUpperCase()}</span>`).join('')}
+        </div></div></div>
+    <div class="pan"><div class="pan-h"><h3>Entity</h3></div><div class="pan-b">
+      ${sel?`<div class="val" style="font-size:13px">${esc(sel.id)}</div>
+        <div class="kv"><div><u>KIND</u><b>${sel.kind}</b></div><div><u>RISK</u><b>${sel.risk!=null?sel.risk:'not scored'}</b></div></div>
+        <div class="sech">CONNECTED</div>
+        ${nbrs.length?nbrs.map(e=>`<div class="list-row" data-node2="${esc(e.src===sel.id?e.dst:e.src)}">
+          <span class="lname2 mono" style="font-size:11.5px">${esc(trunc(e.src===sel.id?e.dst:e.src,22))}</span>
+          <span class="lmeta">${e.rel}</span></div>`).join(''):noneYet('No edges recorded.')}`
+      :'<div class="hint">Select a node to inspect it.</div>'}
+    </div></div>
+  </div>`;
+};
+
+V.telemetry=()=>{
+  if(!WS.events.length) return emptyState('No telemetry parsed',
+    'Paste log lines on the Ingest screen — sshd auth logs, nginx/Apache combined format, JSON lines, or a CSV with a timestamp column. Lines that cannot be parsed are reported, never silently dropped.',
+    '<button class="btn pri" data-goto="ingest">Go to Ingest</button>');
+  const a=WS.analysis||S.analyseEvents(WS.events);
+  const hosts=Object.entries(a.hosts).sort((x,y)=>y[1].events-x[1].events).slice(0,8);
+  return `<div class="grid g21">
+    <div class="pan"><div class="pan-h"><h3>Parsed events</h3><span class="hint">${WS.events.length} STORED</span></div>
+      <div class="pan-b flush"><div class="tw"><table>
+      <thead><tr><th>TIME</th><th>TYPE</th><th>SOURCE</th><th>DESTINATION</th><th>USER</th><th>BYTES OUT</th><th>OUTCOME</th></tr></thead><tbody>
+      ${WS.events.slice(0,60).map(e=>`<tr><td class="hint mono">${e.ts?new Date(e.ts).toISOString().slice(11,19):'—'}</td>
+        <td><span class="tag t-mut">${esc(e.type)}</span></td><td class="val">${esc(e.src||'—')}</td>
+        <td class="val">${esc(e.dst||'—')}</td><td class="hint">${esc(e.user||'—')}</td>
+        <td class="mono">${e.bytesOut?S.formatBytes(e.bytesOut):'—'}</td>
+        <td class="hint">${esc(e.outcome||e.status||'—')}</td></tr>`).join('')}
+      </tbody></table></div></div></div>
+    <div>
+      <div class="pan"><div class="pan-h"><h3>Findings</h3></div><div class="pan-b">
+        ${a.bruteForce.length?a.bruteForce.map(b=>`<div class="note" style="margin-bottom:8px">
+          <b class="mono" style="color:#ff9377">${esc(b.ip)}</b> — ${b.count} failed authentications${b.windowMs?' inside a 4-minute window':''}.</div>`).join(''):''}
+        ${a.transfers.length?a.transfers.slice(0,4).map(t=>`<div class="note" style="margin-bottom:8px">
+          ${S.formatBytes(t.bytesOut)} to <b class="mono" style="color:#ff9377">${esc(t.dst||'unknown')}</b> — z-score ${t.z} against this dataset.</div>`).join(''):''}
+        ${(!a.bruteForce.length&&!a.transfers.length)?noneYet('No behavioural findings in this dataset.'):''}
+      </div></div>
+      <div style="height:12px"></div>
+      <div class="pan"><div class="pan-h"><h3>Per-source activity</h3></div><div class="pan-b">
+        ${hosts.map(([h,v])=>`<div class="list-row"><span class="lname2 mono" style="font-size:11.5px">${esc(h)}</span>
+          <span class="lmeta">${v.events} ev · ${S.formatBytes(v.bytesOut)}${v.failures?' · '+v.failures+' fail':''}</span></div>`).join('')}
+      </div></div>
+      <div style="height:12px"></div>
+      <div class="pan"><div class="pan-h"><h3>Dataset statistics</h3></div><div class="pan-b">
+        ${[['Events',fmt(a.stats.events)],['Mean bytes out',S.formatBytes(a.stats.bytesMean||0)],
+           ['Std deviation',S.formatBytes(a.stats.bytesStdDev||0)],['Distinct destinations',fmt(Object.keys(a.hosts).length)],
+           ['Single-sighting destinations',fmt(a.rareDest.length)]].map(r=>
+          `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line-soft);font-size:12px">
+           <span style="color:var(--faint)">${r[0]}</span><span class="mono" style="color:#e8d2c9">${r[1]}</span></div>`).join('')}
+      </div></div>
+    </div></div>`;
+};
+
+V.attack=()=>{
+  const TACTIC={'T1566.002':'Initial Access','T1568.002':'Command & Control','T1071':'Command & Control',
+    'T1071.001':'Command & Control','T1105':'Command & Control','T1571':'Command & Control',
+    'T1583.001':'Resource Development','T1588.006':'Resource Development','T1110':'Credential Access','T1041':'Exfiltration'};
+  const NAME={'T1566.002':'Spearphishing Link','T1568.002':'Domain Generation Algorithms','T1071':'Application Layer Protocol',
+    'T1071.001':'Web Protocols','T1105':'Ingress Tool Transfer','T1571':'Non-Standard Port',
+    'T1583.001':'Acquire Infrastructure: Domains','T1588.006':'Obtain Capabilities: Vulnerabilities',
+    'T1110':'Brute Force','T1041':'Exfiltration Over C2 Channel'};
+  const counts={}; WS.alerts.forEach(a=>counts[a.technique]=(counts[a.technique]||0)+1);
+  const all=Array.from(new Set([...WS.rules.map(r=>r.technique),...S.EVENT_RULES.map(r=>r.technique)]));
+  const byTactic={};
+  all.forEach(t=>{const k=TACTIC[t]||'Other';(byTactic[k]||(byTactic[k]=[])).push(t);});
+  const max=Math.max(1,...Object.values(counts));
+  const fired=Object.keys(counts).length;
+  return `<div class="pan"><div class="pan-h"><h3>Technique coverage</h3>
+    <span class="hint">${fired} OF ${all.length} TECHNIQUES EVIDENCED BY FIRED RULES</span></div>
+    <div class="pan-b">${fired?'':'<div class="hint" style="margin-bottom:12px">No rules have fired yet — every cell below shows zero because nothing in this workspace matched.</div>'}
+    <div class="mtx">${Object.entries(byTactic).map(([tac,techs])=>`<div class="mcol"><h4>${tac.toUpperCase()}</h4>
+      ${techs.map(t=>{const c=counts[t]||0;const pct=Math.round(c/max*100);
+      return `<div class="tcell" data-tech="${t}"><div class="tid">${t}</div><div class="tnm">${NAME[t]||''}</div>
+        <div class="tct">${c} alert${c===1?'':'s'}</div>
+        <div class="bar" style="margin-top:6px"><i data-w="${pct}" style="background:${c?(pct>66?'#e73b0d':pct>33?'#fbc856':'#7f9e6a'):'#2c110d'}"></i></div></div>`;}).join('')}
+    </div>`).join('')}</div></div></div>`;
+};
+
+V.rules=()=>`
+  <div class="grid g21">
+    <div>
+      <div class="pan" style="margin-bottom:12px"><div class="pan-h"><h3>Add a rule</h3><span class="hint">PARSED LIVE</span></div>
+        <div class="pan-b">
+          <input class="expr-in" id="newName" placeholder="Rule name" style="margin-bottom:8px;color:#eeddd5">
+          <input class="expr-in" id="newExpr" placeholder='e.g. dga > 0.55 and type == "domain"'>
+          <div class="parse-msg" id="parseMsg">Fields: type, value, host, risk, confidence, dga, entropy, tld, tld_risk, phish_words, homograph_flags, subdomain_depth, scheme, ip_host, risky_extension, nonstandard_port, has_credentials, cve_age, length</div>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+            <select class="btn" id="newSev"><option value="low">low</option><option value="medium" selected>medium</option><option value="high">high</option><option value="critical">critical</option></select>
+            <input class="btn" id="newTech" placeholder="T1071" style="width:90px">
+            <button class="btn pri" id="addRule">Add rule</button>
+            <span class="hint" id="matchCount" style="margin-left:auto"></span>
+          </div>
+        </div></div>
+      <div class="pan"><div class="pan-h"><h3>Active rules</h3><span class="hint">${WS.rules.filter(r=>r.enabled).length}/${WS.rules.length} ENABLED</span></div>
+        <div class="pan-b">${WS.rules.map((r,i)=>{
+          const hits=WS.alerts.filter(a=>a.ruleId===r.id).length;
+          return `<div class="rule-card">
+            <div class="rule-top"><span class="rule-name">${esc(r.name)}</span>
+              <span class="tag ${SEVT[r.severity]}">${r.severity.toUpperCase()}</span>
+              <span class="tag t-mut">${esc(r.technique)}</span>
+              <span class="tag ${hits?'t-gold':'t-mut'}">${hits} hit${hits===1?'':'s'}</span>
+              <span class="sw ${r.enabled?'on':''}" data-rule="${i}"></span></div>
+            <div class="mono" style="font-size:11.5px;color:#f0b79c">${esc(r.expr)}</div>
+            <div class="hint" style="margin-top:5px">${r.id}${r.custom?' · added by you <b class="btn sm" data-delrule="'+i+'" style="cursor:pointer;padding:1px 6px">remove</b>':''}</div>
+          </div>`;}).join('')}</div></div>
+    </div>
+    <div class="pan"><div class="pan-h"><h3>Expression language</h3></div><div class="pan-b mini-doc">
+      <p>Rules are tokenised and parsed by a hand-written recursive-descent parser. There is no <code>eval</code> and no <code>new Function</code> anywhere in the engine — a unit test asserts this.</p>
+      <p><b style="color:#e0c7bd">Operators</b><br><code>&gt; &lt; &gt;= &lt;= == !=</code> comparison, <code>=~</code> regex match, <code>and or not</code>, parentheses.</p>
+      <p><b style="color:#e0c7bd">Examples</b><br>
+      <code>dga &gt; 0.6 and tld_risk &gt; 0.5</code><br>
+      <code>value =~ /login|verify/ and type == "domain"</code><br>
+      <code>risky_extension and scheme == "http"</code><br>
+      <code>not homograph_flags == 0</code></p>
+      <p>A malformed expression is rejected at the input with the parser's own message, so a broken rule can never reach the workspace.</p>
+    </div></div>
+  </div>`;
+
+V.export=()=>{
+  const n=WS.indicators.filter(i=>!i.benign).length;
+  if(!n) return emptyState('Nothing to export','Export builds a STIX 2.1 bundle and CSV files from the indicators and alerts in this workspace.',
+    '<button class="btn pri" data-goto="ingest">Go to Ingest</button>');
+  const bundle=S.toStix(WS.indicators.filter(i=>!i.benign),{producer:'SkyRecon'});
+  return `<div class="grid g11">
+    <div class="pan"><div class="pan-h"><h3>Download</h3></div><div class="pan-b">
+      <div class="list-row"><span class="lname2">STIX 2.1 bundle<div class="hint">${bundle.objects.length-1} indicator objects, deterministic ids</div></span>
+        <button class="btn" data-dl="stix">Download .json</button></div>
+      <div class="list-row"><span class="lname2">Indicators CSV<div class="hint">${n} rows with scores and timings</div></span>
+        <button class="btn" data-dl="ioc">Download .csv</button></div>
+      <div class="list-row"><span class="lname2">Alerts CSV<div class="hint">${WS.alerts.length} rows with rule and evidence</div></span>
+        <button class="btn" data-dl="alerts">Download .csv</button></div>
+      <div class="list-row"><span class="lname2">Full workspace<div class="hint">everything, re-importable JSON</div></span>
+        <button class="btn" data-dl="workspace">Download .json</button></div>
+      <div style="margin-top:12px;display:flex;gap:8px"><button class="btn gold" data-copy="stix">Copy STIX to clipboard</button>
+        <button class="btn" data-copy="defanged">Copy defanged IOC list</button></div>
+    </div></div>
+    <div class="pan"><div class="pan-h"><h3>STIX preview</h3><span class="hint">FIRST OBJECT</span></div>
+      <div class="pan-b"><div class="term">${esc(JSON.stringify(bundle.objects[1]||bundle.objects[0],null,2))}</div></div></div>
+  </div>`;
+};
+
+V.workspace=()=>`
+  <div class="grid g11">
+    <div class="pan"><div class="pan-h"><h3>Storage</h3></div><div class="pan-b">
+      <div class="note">${storeMode==='cloud'
+        ?'Connected to the workspace store for this artifact. Your data persists across reloads and sessions, and updates from another open tab arrive live.'
+        :'The workspace store is not available in this view, so data is kept in this browser only (localStorage). It survives reloads on this device but does not sync.'}</div>
+      <div class="kv"><div><u>MODE</u><b>${storeMode==='cloud'?'workspace store':'browser only'}</b></div>
+        <div><u>REVISION</u><b>${WS.meta.rev||0}</b></div>
+        <div><u>CREATED</u><b>${WS.meta.created?new Date(WS.meta.created).toISOString().slice(0,16).replace('T',' '):'—'}</b></div>
+        <div><u>UPDATED</u><b>${WS.meta.updated?rel(WS.meta.updated):'—'}</b></div></div>
+      <div class="acts"><button class="btn danger" id="wipe">Delete all workspace data</button></div>
+    </div></div>
+    <div class="pan"><div class="pan-h"><h3>How scoring works</h3></div><div class="pan-b mini-doc">
+      <p>Every score starts from a source baseline (<code>analyst 35</code>, <code>report 38</code>, <code>community feed 42</code>, <code>high-confidence feed 55</code>) and moves only by named factors.</p>
+      <p><b style="color:#e0c7bd">Domain and URL factors</b><br>
+      TLD abuse weight × 40 · DGA classifier × 34 · credential vocabulary up to +16 · homograph +18 · deep nesting +6 ·
+      executable extension +15 · bare-IP host +12 · embedded credentials +14 · non-standard port +7 · cleartext +4.</p>
+      <p><b style="color:#e0c7bd">Reductions</b><br>Non-routable address −30 · weak hash algorithm −6 · implausible CVE year −25.</p>
+      <p><b style="color:#e0c7bd">Confidence</b> counts agreeing factors, then halves every 30 days without a fresh sighting.</p>
+      <p>Bands: <b style="color:#e73b0d">critical ≥ 85</b>, <b style="color:#c1381a">high ≥ 65</b>, <b style="color:var(--gold)">medium ≥ 40</b>, <b style="color:var(--moss)">low below 40</b>.</p>
+    </div></div>
+  </div>
+  <div class="pan"><div class="pan-h"><h3>Ingest history</h3></div><div class="pan-b flush">
+    ${WS.ingests.length?`<div class="tw"><table><thead><tr><th>ID</th><th>SOURCE</th><th>LABEL</th><th>EXTRACTED</th><th>DROPPED</th><th>EVENTS</th><th>UNPARSED</th><th>TIME</th><th>WHEN</th></tr></thead><tbody>
+    ${WS.ingests.map(i=>`<tr><td class="mono hint">${i.id}</td><td><span class="tag t-mut">${esc(i.source)}</span></td>
+      <td>${esc(trunc(i.label,40))}</td><td class="mono">${i.extracted}</td><td class="mono hint">${i.dropped}</td>
+      <td class="mono">${i.parsedEvents}</td><td class="mono hint">${i.unparsed}</td><td class="mono hint">${i.ms}ms</td>
+      <td class="hint mono">${rel(i.at)}</td></tr>`).join('')}</tbody></table></div>`
+    :'<div class="pan-b">'+noneYet()+'</div>'}
+  </div></div>`;
+
+/* ── flyouts ──────────────────────────────────────────────────────────── */
+function openIoc(key){
+  const i=WS.indicators.find(x=>x.key===key); if(!i)return;
+  const C=2*Math.PI*30;
+  const linked=WS.alerts.filter(a=>a.indicator===i.value);
+  const host=i.type==='url'?(S.urlInfo(i.value).host||''):i.type==='email'?i.value.split('@')[1]:i.value;
+  const parts=host&&host.includes('.')?S.domainParts(host):null;
+  const dga=parts?S.dgaScore(parts.sld):null;
+  const total=(i.factors||[]).reduce((a,f)=>a+f.delta,0);
+  $('#fly').innerHTML=`
+   <div class="fly-h"><button class="fly-x" data-close>✕</button>
+     <span class="tag ${i.benign?'t-mut':SEVT[i.severity]}">${i.benign?'MARKED BENIGN':i.severity.toUpperCase()}</span>
+     <h3 class="mono" style="font-size:14px;margin-top:8px;word-break:break-all">${esc(i.value)}</h3>
+     <div class="hint" style="margin-top:3px">${i.type.toUpperCase()} · ${i.sightings} sighting${i.sightings===1?'':'s'} · ${(i.sources||[]).join(', ')}</div></div>
+   <div class="fly-b">
+     <div style="display:flex;align-items:center;gap:15px">
+       <div class="gauge"><svg width="78" height="78" viewBox="0 0 78 78">
+         <circle cx="39" cy="39" r="30" fill="none" stroke="#2c110d" stroke-width="6"/>
+         <circle id="arc" cx="39" cy="39" r="30" fill="none" stroke="${SEVC[i.severity]}" stroke-width="6" stroke-linecap="round"
+           stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg><b>${i.risk}</b></div>
+       <div><div class="hint" style="letter-spacing:.1em">COMPOSITE RISK</div>
+         <div style="font-size:12.5px;color:#c8ab9f;margin-top:3px">Confidence ${S.decayConfidence(i.confidence,i.lastSeen,Date.now())}% after decay (${i.confidence}% at last sighting)</div>
+         <div class="hint" style="margin-top:4px">first seen ${rel(i.firstSeen)} · last ${rel(i.lastSeen)}</div></div>
+     </div>
+     <div class="sech">SCORE LEDGER — EVERY POINT ACCOUNTED FOR</div>
+     <div class="ledger">
+       ${(i.factors||[]).map(f=>`<div class="lr"><span class="lname">${esc(f.label)}</span>
+         <span class="ldet">${esc(f.detail)}</span>
+         <span class="ldelta ${f.delta>=0?'pos':'neg'}">${f.delta>=0?'+':''}${f.delta}</span></div>`).join('')}
+       <div class="lr total"><span class="lname">Composite</span><span class="ldet">clamped to 0–100</span>
+         <span class="ldelta">${i.risk}</span></div>
+     </div>
+     ${dga?`<div class="sech">DGA CLASSIFIER COMPONENTS — "${esc(parts.sld)}"</div>
+       ${dga.components.map(c=>`<div class="brow"><div class="bl"><span>${c.key}</span><span>${c.value} × ${c.weight}</span></div>
+         <div class="bar"><i data-w="${Math.round(c.value*100)}" style="background:${c.value>.6?'#e73b0d':c.value>.35?'#fbc856':'#7f9e6a'}"></i></div>
+         <div class="hint" style="margin-top:3px">${esc(c.detail)}</div></div>`).join('')}
+       <div class="note">Weighted total ${dga.score} — the classifier output used above.</div>`:''}
+     ${i.type==='ipv4'?`<div class="sech">ADDRESS</div><div class="note">${esc(S.ipClassify(i.value).scope)} space${S.ipClassify(i.value).routable?' — globally routable':' — not routable on the public internet'}.</div>`:''}
+     ${linked.length?`<div class="sech">RULES THAT MATCHED</div>${linked.map(a=>`<div class="list-row" data-alert="${esc(a.id)}">
+       <span class="sevbar" style="background:${SEVC[a.severity]}"></span><span class="lname2">${esc(a.rule)}</span>
+       <span class="lmeta">${esc(a.ruleId)}</span></div>`).join('')}`:'<div class="sech">RULES</div><div class="hint">No enabled rule matched this indicator.</div>'}
+     <div class="acts">
+       <button class="btn" data-benign="${esc(i.key)}">${i.benign?'Restore to scoring':'Mark benign (score 0)'}</button>
+       <button class="btn" data-copyval="${esc(i.value)}">Copy</button>
+       <button class="btn danger" data-delioc="${esc(i.key)}">Delete</button>
+     </div>
+   </div>`;
+  showFly();
+  requestAnimationFrame(()=>{const a=$('#arc'); if(a){a.style.transition='stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)';a.style.strokeDashoffset=C-(i.risk/100)*C;}
+    $$('#fly [data-w]').forEach(el=>el.style.width=el.dataset.w+'%');});
+}
+function openAlert(id){
+  const a=WS.alerts.find(x=>x.id===id); if(!a)return;
+  $('#fly').innerHTML=`
+   <div class="fly-h"><button class="fly-x" data-close>✕</button>
+     <span class="tag ${SEVT[a.severity]}">${a.severity.toUpperCase()}</span>
+     <h3 style="font-size:15px;margin-top:8px">${esc(a.rule)}</h3>
+     <div class="hint" style="margin-top:3px">${a.id} · ${a.ruleId} · raised ${rel(a.at)}</div></div>
+   <div class="fly-b">
+     <div class="kv"><div><u>INDICATOR</u><b>${esc(a.indicator)}</b></div><div><u>TYPE</u><b>${a.type}</b></div>
+       <div><u>RISK</u><b>${a.risk}</b></div><div><u>ATT&CK</u><b>${a.technique}</b></div></div>
+     <div class="sech">MATCHING EXPRESSION</div>
+     <div class="term" style="max-height:none">${esc(a.expr)}</div>
+     <div class="sech">EVIDENCE</div>
+     <div class="note">${a.reasons.map(r=>'<div style="margin-bottom:6px">'+esc(r)+'</div>').join('')}</div>
+     <div class="sech">STATUS</div>
+     <div class="chips">${['open','triaged','resolved','false_positive'].map(s=>
+       `<span class="chip${a.status===s?' on':''}" data-status="${esc(a.id)}|${s}">${s.replace('_',' ')}</span>`).join('')}</div>
+     <div class="acts"><button class="btn" data-ioc-from-alert="${esc(a.indicator)}">Open indicator</button></div>
+   </div>`;
+  showFly();
+}
+function showFly(){ $('#fly').classList.add('on'); $('#scrim').classList.add('on'); wire(); }
+function closeFly(){ $('#fly').classList.remove('on'); $('#scrim').classList.remove('on'); }
+
+/* ── wiring ───────────────────────────────────────────────────────────── */
+const state={iocType:'all'};
+function wire(){
+  $$('[data-goto]').forEach(b=>b.onclick=()=>go(b.dataset.goto));
+  $$('[data-ioc]').forEach(r=>r.onclick=()=>openIoc(r.dataset.ioc));
+  $$('[data-alert]').forEach(r=>r.onclick=()=>openAlert(r.dataset.alert));
+  $$('[data-close]').forEach(b=>b.onclick=closeFly);
+  $$('[data-ftype]').forEach(c=>c.onclick=()=>{state.iocType=c.dataset.ftype;render();});
+  $$('[data-node]').forEach(n=>{
+    n.onclick=()=>{selNode=n.dataset.node;render();};
+    n.onmouseenter=()=>$$('.gedge').forEach(e=>{const p=e.parentNode.dataset.edge.split('|');
+      e.classList.toggle('lit',p.includes(n.dataset.node)); e.classList.toggle('dim',!p.includes(n.dataset.node));});
+    n.onmouseleave=()=>$$('.gedge').forEach(e=>{e.classList.remove('lit');e.classList.remove('dim');});
+  });
+  $$('[data-node2]').forEach(n=>n.onclick=()=>{selNode=n.dataset.node2;render();});
+  $$('[data-rule]').forEach(sw=>sw.onclick=()=>{const i=+sw.dataset.rule;WS.rules[i].enabled=!WS.rules[i].enabled;
+    recomputeAlerts();persist();render();toast('Rule '+(WS.rules[i].enabled?'enabled':'disabled'));});
+  $$('[data-delrule]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();WS.rules.splice(+b.dataset.delrule,1);
+    recomputeAlerts();persist();render();toast('Rule removed');});
+  $$('[data-benign]').forEach(b=>b.onclick=()=>{
+    const i=WS.indicators.find(x=>x.key===b.dataset.benign); if(!i)return;
+    i.benign=!i.benign;
+    const sc=S.scoreIndicator({type:i.type,value:i.value},{source:(i.sources||['analyst'])[0],sightings:i.sightings});
+    i.risk=i.benign?0:sc.risk; i.severity=i.benign?'low':sc.severity; i.factors=i.benign?[{label:'Analyst decision',delta:0,detail:'marked benign — excluded from scoring and rules'}]:sc.factors;
+    recomputeAlerts();persist();closeFly();render();toast(i.benign?'Marked benign':'Restored to scoring');});
+  $$('[data-delioc]').forEach(b=>b.onclick=()=>{
+    WS.indicators=WS.indicators.filter(x=>x.key!==b.dataset.delioc);
+    recomputeAlerts();persist();closeFly();render();toast('Indicator deleted');});
+  $$('[data-copyval]').forEach(b=>b.onclick=()=>copy(b.dataset.copyval,'Copied'));
+  $$('[data-ioc-from-alert]').forEach(b=>b.onclick=()=>{
+    const i=WS.indicators.find(x=>x.value===b.dataset.iocFromAlert); if(i)openIoc(i.key);});
+  $$('[data-status]').forEach(c=>c.onclick=()=>{
+    const [id,st]=c.dataset.status.split('|'); const a=WS.alerts.find(x=>x.id===id);
+    if(a){a.status=st;persist();openAlert(id);render();toast('Alert marked '+st.replace('_',' '));}});
+  $$('[data-tech]').forEach(c=>c.onclick=()=>{
+    const hits=WS.alerts.filter(a=>a.technique===c.dataset.tech);
+    toast(hits.length?c.dataset.tech+': '+hits.length+' alert(s) — '+hits[0].rule:c.dataset.tech+': no alerts yet');});
+  $$('[data-dl]').forEach(b=>b.onclick=()=>download(b.dataset.dl));
+  $$('[data-copy]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.copy==='stix') copy(JSON.stringify(S.toStix(WS.indicators.filter(i=>!i.benign),{producer:'SkyRecon'}),null,2),'STIX bundle copied');
+    else copy(WS.indicators.filter(i=>!i.benign).map(i=>defang(i.value)).join('\n'),'Defanged list copied');});
+  const rr=$('#reRun'); if(rr) rr.onclick=()=>{recomputeAlerts();persist();render();toast('Rules re-evaluated over '+WS.indicators.length+' indicators');};
+  const qi=$('#quickIngest'); if(qi) qi.onclick=()=>go('ingest');
+  const wp=$('#wipe'); if(wp) wp.onclick=()=>{
+    if(!confirm('Delete every indicator, alert, event and custom rule in this workspace?'))return;
+    WS.indicators=[];WS.alerts=[];WS.events=[];WS.ingests=[];WS.rules=S.DEFAULT_RULES.map(r=>({...r}));WS.analysis=null;
+    persist();render();toast('Workspace cleared');};
+  $('#scrim').onclick=closeFly;
+}
+
+const INIT={};
+INIT.ingest=()=>{
+  const box=$('#pasteBox'), cc=$('#charCount');
+  let source='report';
+  $$('#srcSeg b').forEach(b=>b.onclick=()=>{$$('#srcSeg b').forEach(x=>x.classList.remove('on'));b.classList.add('on');source=b.dataset.s;});
+  box.oninput=()=>cc.textContent=fmt(box.value.length)+' characters';
+  $('#clearBox').onclick=()=>{box.value='';cc.textContent='0 characters';$('#ingestResult').innerHTML='';};
+  $('#loadSample').onclick=()=>{box.value=SAMPLE;cc.textContent=fmt(SAMPLE.length)+' characters';toast('Example loaded — press Analyse to run it');};
+  $('#runIngest').onclick=()=>{
+    const text=box.value.trim();
+    if(!text){toast('Paste something to analyse first');box.focus();return;}
+    const label=(text.split('\n')[0]||'').slice(0,48)||'pasted input';
+    const {rec,ex,logs}=ingest(text,source,label);
+    renderIngestResult(rec,ex,logs);
+    buildNav(); paintStore();
+    toast(rec.added+' new indicator'+(rec.added===1?'':'s')+', '+rec.parsedEvents+' event'+(rec.parsedEvents===1?'':'s')+' parsed in '+rec.ms+'ms');
+  };
+  const dz=$('#dropZone');
+  dz.onclick=()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.txt,.log,.csv,.json,.md';
+    inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();
+      r.onload=()=>{box.value=r.result;cc.textContent=fmt(box.value.length)+' characters';toast('Loaded '+f.name);};r.readAsText(f);};inp.click();};
+  ['dragover','dragenter'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('over');}));
+  dz.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(!f)return;const r=new FileReader();
+    r.onload=()=>{box.value=r.result;cc.textContent=fmt(box.value.length)+' characters';toast('Loaded '+f.name);};r.readAsText(f);});
+};
+INIT.rules=()=>{
+  const ex=$('#newExpr'), msg=$('#parseMsg'), mc=$('#matchCount');
+  const check=()=>{
+    const v=ex.value.trim();
+    if(!v){ex.classList.remove('bad');msg.className='parse-msg';msg.textContent='Fields: type, value, host, risk, confidence, dga, entropy, tld, tld_risk, phish_words, homograph_flags, subdomain_depth, scheme, ip_host, risky_extension, nonstandard_port, has_credentials, cve_age, length';mc.textContent='';return null;}
+    try{
+      const ast=S.parseRule(v);
+      ex.classList.remove('bad'); msg.className='parse-msg parse-ok'; msg.textContent='✓ parses cleanly';
+      const live=WS.indicators.filter(i=>!i.benign);
+      let hits=0;
+      live.forEach(i=>{const ctx=S.ruleContext({type:i.type,value:i.value},{risk:i.risk,confidence:i.confidence,severity:i.severity,factors:i.factors||[]});
+        try{ if(S.evalRule(ast,ctx)) hits++; }catch(e){}});
+      mc.textContent=live.length?(hits+' of '+live.length+' current indicators match'):'no indicators to test against yet';
+      return ast;
+    }catch(e){ ex.classList.add('bad'); msg.className='parse-msg parse-bad'; msg.textContent='✗ '+e.message; mc.textContent=''; return null; }
+  };
+  ex.oninput=check;
+  $('#addRule').onclick=()=>{
+    const name=$('#newName').value.trim()||'Untitled rule';
+    if(!check())  { toast('Fix the expression before adding the rule'); return; }
+    const id='R-'+String(900+WS.rules.filter(r=>r.custom).length+1);
+    WS.rules.push({id,name,expr:ex.value.trim(),severity:$('#newSev').value,technique:($('#newTech').value.trim()||'T1071'),enabled:true,custom:true});
+    recomputeAlerts(); persist(); render(); toast('Rule added and evaluated');
+  };
+};
+
+/* ── ingest result ────────────────────────────────────────────────────── */
+function renderIngestResult(rec,ex,logs){
+  const scored=ex.indicators.map(i=>{
+    const r=WS.indicators.find(x=>x.key===i.type+'|'+i.value.toLowerCase());
+    return {...i,risk:r?r.risk:0,severity:r?r.severity:'low',key:r?r.key:''};
+  }).sort((a,b)=>b.risk-a.risk);
+  $('#ingestResult').innerHTML=`
+  <div style="height:12px"></div>
+  <div class="strip" style="grid-template-columns:repeat(5,1fr)">
+    ${[['EXTRACTED',rec.extracted],['FILTERED OUT',rec.dropped],['NEW',rec.added],['LOG EVENTS',rec.parsedEvents],['ELAPSED',rec.ms+'ms']]
+      .map(m=>`<div class="mt"><div class="mt-l">${m[0]}</div><div class="mt-v">${m[1]}</div></div>`).join('')}
+  </div>
+  <div class="grid g21">
+    <div class="pan"><div class="pan-h"><h3>Indicators found</h3><span class="hint">SCORED ON INGEST</span></div>
+      <div class="pan-b flush">${scored.length?`<div class="tw"><table>
+      <thead><tr><th>INDICATOR</th><th>TYPE</th><th>RISK</th><th>SEEN IN TEXT</th></tr></thead><tbody>
+      ${scored.map(i=>`<tr data-ioc="${esc(i.key)}"><td><span class="sevbar" style="background:${SEVC[i.severity]}"></span><span class="val">${esc(trunc(i.value,46))}</span></td>
+        <td class="mono hint">${i.type.toUpperCase()}</td>
+        <td><span class="rb"><u><i data-w="${i.risk}" style="background:${SEVC[i.severity]}"></i></u><b>${i.risk}</b></span></td>
+        <td class="mono hint">${i.count}×</td></tr>`).join('')}</tbody></table></div>`
+      :'<div class="pan-b">'+noneYet('No indicators in that text.')+'</div>'}</div></div>
+    <div>
+      ${ex.dropped.length?`<div class="pan"><div class="pan-h"><h3>Filtered out</h3><span class="hint">${ex.dropped.length}</span></div>
+        <div class="pan-b" style="max-height:220px;overflow-y:auto">${ex.dropped.map(d=>`<div class="list-row" style="cursor:default">
+          <span class="lname2 mono" style="font-size:11px">${esc(trunc(d.value,24))}${d.count>1?' <span class="hint">×'+d.count+'</span>':''}</span><span class="lmeta">${esc(d.reason)}</span></div>`).join('')}</div></div>
+        <div style="height:12px"></div>`:''}
+      ${logs.events.length?`<div class="pan"><div class="pan-h"><h3>Log parsing</h3></div><div class="pan-b">
+        ${Object.entries(logs.formats).map(([f,n])=>`<div class="list-row" style="cursor:default"><span class="lname2">${esc(f)}</span><span class="lmeta">${n} lines</span></div>`).join('')}
+        ${logs.unparsed.length?`<div class="note" style="margin-top:9px">${logs.unparsed.length} line(s) did not match any known format — line ${logs.unparsed[0].line}: <span class="mono">${esc(trunc(logs.unparsed[0].text,48))}</span></div>`:''}
+      </div></div>`:''}
+    </div>
+  </div>`;
+  requestAnimationFrame(()=>$$('#ingestResult [data-w]').forEach(el=>el.style.width=el.dataset.w+'%'));
+  wire();
+}
+
+/* ── export ───────────────────────────────────────────────────────────── */
+function defang(v){ return String(v).replace(/\./g,'[.]').replace(/^http/i,'hxxp').replace(/:\/\//,'[://]'); }
+async function download(kind){
+  const live=WS.indicators.filter(i=>!i.benign);
+  let name,data;
+  if(kind==='stix'){ name='skyrecon-indicators.stix.json'; data=JSON.stringify(S.toStix(live,{producer:'SkyRecon'}),null,2); }
+  else if(kind==='ioc'){ name='skyrecon-indicators.csv';
+    data=S.toCsv(live.map(i=>({indicator:i.value,type:i.type,risk:i.risk,confidence:i.confidence,severity:i.severity,
+      sightings:i.sightings,sources:(i.sources||[]).join('|'),first_seen:new Date(i.firstSeen).toISOString(),
+      last_seen:new Date(i.lastSeen).toISOString(),rationale:(i.factors||[]).map(f=>f.label+' '+(f.delta>=0?'+':'')+f.delta).join('; ')})),
+      ['indicator','type','risk','confidence','severity','sightings','sources','first_seen','last_seen','rationale']); }
+  else if(kind==='alerts'){ name='skyrecon-alerts.csv';
+    data=S.toCsv(WS.alerts.map(a=>({alert_id:a.id,rule_id:a.ruleId,rule:a.rule,severity:a.severity,indicator:a.indicator,
+      type:a.type,risk:a.risk,technique:a.technique,status:a.status,expression:a.expr,evidence:(a.reasons||[]).join(' | ')})),
+      ['alert_id','rule_id','rule','severity','indicator','type','risk','technique','status','expression','evidence']); }
+  else { name='skyrecon-workspace.json'; data=JSON.stringify({indicators:WS.indicators,alerts:WS.alerts,rules:WS.rules,ingests:WS.ingests,meta:WS.meta},null,2); }
+
+  try{
+    const dl=await claude.use('downloads');
+    if(dl){ await dl.save({filename:name,data}); toast('Saved '+name); return; }
+  }catch(e){ /* viewer declined or capability unavailable */ }
+  copy(data,'Download unavailable here — '+name+' copied to clipboard instead');
+}
+function copy(text,msg){
+  navigator.clipboard.writeText(text).then(()=>toast(msg||'Copied'),()=>toast('Clipboard blocked by the browser'));
+}
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;$('#toasts').appendChild(t);
+  setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),200);},3000);}
+
+/* A worked example the analyst loads deliberately — visible text, not hidden
+   seeded rows. Every number the console then shows is derived from it. */
+const SAMPLE=`Incident note — suspected credential harvesting and follow-on exfiltration
+Reported by: SOC shift 2
+
+Phishing mail directed staff to hxxps://secure-login-verify[.]top/office365/auth?id=8821
+A second lure used hxxp://45[.]155[.]205[.]233:8080/update/invoice.exe
+Redirector observed at kq7vbnxmzwrp[.]xyz and mail-authcheck[.]click
+Sender address: billing@secure-mail[.]top
+Dropper SHA-256: a83f2e9c7b41d5f0e2a1b7c4d9e0f3a2b5c8d1e4f7a0b3c6d9e2f5a8b1c4d02e
+Exploit referenced: CVE-2026-3155
+Internal hosts involved: 10.10.4.82 and 192.168.1.40 (both internal, for context only)
+Legitimate service also seen in the same traffic: github.com
+
+Authentication log excerpt:
+Oct 10 13:55:36 web01 sshd[2311]: Failed password for invalid user admin from 203.0.113.9 port 51122 ssh2
+Oct 10 13:55:41 web01 sshd[2312]: Failed password for invalid user root from 203.0.113.9 port 51124 ssh2
+Oct 10 13:55:47 web01 sshd[2313]: Failed password for invalid user test from 203.0.113.9 port 51126 ssh2
+Oct 10 13:56:02 web01 sshd[2314]: Failed password for invalid user oracle from 203.0.113.9 port 51130 ssh2
+Oct 10 13:56:19 web01 sshd[2315]: Failed password for invalid user backup from 203.0.113.9 port 51133 ssh2
+Oct 10 13:58:41 web01 sshd[2320]: Accepted password for deploy from 10.10.0.14 port 51140 ssh2
+
+Netflow excerpt (20 baseline minutes, then the anomaly):
+2026-10-10T14:01:00,10.10.4.82,93.184.216.34,12400,860
+2026-10-10T14:02:00,10.10.4.82,93.184.216.34,11980,863
+2026-10-10T14:03:00,10.10.4.82,93.184.216.34,12610,866
+2026-10-10T14:04:00,10.10.4.82,93.184.216.34,12050,869
+2026-10-10T14:05:00,10.10.4.82,93.184.216.34,13100,872
+2026-10-10T14:06:00,10.10.4.82,93.184.216.34,12220,875
+2026-10-10T14:07:00,10.10.4.82,93.184.216.34,11870,878
+2026-10-10T14:08:00,10.10.4.82,93.184.216.34,12540,881
+2026-10-10T14:09:00,10.10.4.82,93.184.216.34,11760,884
+2026-10-10T14:10:00,10.10.4.82,93.184.216.34,12930,887
+2026-10-10T14:11:00,10.10.4.82,93.184.216.34,12310,890
+2026-10-10T14:12:00,10.10.4.82,93.184.216.34,11990,893
+2026-10-10T14:13:00,10.10.4.82,93.184.216.34,12680,896
+2026-10-10T14:14:00,10.10.4.82,93.184.216.34,12140,899
+2026-10-10T14:15:00,10.10.4.82,93.184.216.34,13020,902
+2026-10-10T14:16:00,10.10.4.82,93.184.216.34,11830,905
+2026-10-10T14:17:00,10.10.4.82,93.184.216.34,12470,908
+2026-10-10T14:18:00,10.10.4.82,93.184.216.34,12260,911
+2026-10-10T14:19:00,10.10.4.82,93.184.216.34,12890,914
+2026-10-10T14:20:00,10.10.4.82,93.184.216.34,12010,917
+2026-10-10T14:21:00,10.10.4.82,45.155.205.233,43219000,1220
+`;
+
+/* boot */
+buildNav(); render(); initStore();
+})();
+</script>

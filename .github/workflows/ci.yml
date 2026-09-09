@@ -131,3 +131,43 @@ jobs:
       - name: Logs
         if: always()
         run: docker logs skyrecon-ci || true
+
+  console:
+    name: standalone console (js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Unit tests for the analysis engine
+        run: node tests/js/engine.test.js
+
+      - name: Rebuild the console from its sources
+        run: node tests/js/build.js
+
+      - name: The committed console must match its sources
+        run: git diff --exit-code -- console/index.html
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.56.0
+          npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: node tests/js/e2e.test.js
+
+  diagrams:
+    name: ER diagram matches the models
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Regenerate from app/models.py
+        run: python tools/generate_er.py
+      - name: The committed diagram must match the schema
+        run: git diff --exit-code -- docs/diagrams/

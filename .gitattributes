@@ -1,0 +1,18 @@
+# Without this, checking the repo out on Windows and touching it from WSL,
+# Docker or a Linux shell reports every file as modified — pure line endings.
+* text=auto eol=lf
+
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.tgz  binary
+*.zip  binary
+
+*.svg      text eol=lf
+*.drawio   text eol=lf
+*.sql      text eol=lf
+*.py       text eol=lf
+*.js       text eol=lf
+*.html     text eol=lf
+*.md       text eol=lf
+*.yml      text eol=lf

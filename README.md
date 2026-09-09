@@ -4,7 +4,7 @@
 
 **A threat intelligence and detection platform where the database is encrypted, the audit log is tamper-evident, and every detection explains itself.**
 
-[![CI](https://github.com/Ranchiro/skyrecon/actions/workflows/ci.yml/badge.svg)](https://github.com/Ranchiro/skyrecon/actions/workflows/ci.yml)
+[![CI](https://github.com/Ganatra-Ruchir/skyrecon/actions/workflows/ci.yml/badge.svg)](https://github.com/Ganatra-Ruchir/skyrecon/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -22,6 +22,14 @@ files and proves none of it comes back out.
 <div align="center">
   <img src="docs/screenshots/overview.png" alt="SkyRecon overview: KPIs, severity breakdown, ATT&CK coverage and most-seen indicators" width="900">
 </div>
+
+## Two front ends
+
+`app/static/` is the product dashboard: it authenticates and reads what the backend has
+stored. `console/` is a standalone analyst workbench — one self-contained HTML file that
+extracts, scores and explains a pasted report with no server at all, for a locked-down
+laptop or an air-gapped review. See [console/README.md](console/README.md), including an
+honest note about where its JavaScript scoring engine and `app/ioc/` could drift apart.
 
 ## What it actually does
 
@@ -117,7 +125,7 @@ protecting the data.
 ## Quick start
 
 ```bash
-git clone https://github.com/Ranchiro/skyrecon.git
+git clone https://github.com/Ganatra-Ruchir/skyrecon.git
 cd skyrecon
 
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate

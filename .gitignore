@@ -14,3 +14,10 @@ models/*.joblib
 *.db-shm
 *.db-wal
 .DS_Store
+
+# standalone console (js toolchain)
+node_modules/
+package.json
+package-lock.json
+tests/js/preview.html
+tests/js/shot-*.png
