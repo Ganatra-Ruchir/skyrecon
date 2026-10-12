@@ -89,7 +89,7 @@ def rdap_ip(ip: str) -> dict:
     out = {
         "network_name": data.get("name"),
         "network_org": org,
-        "network_range": f"{start}–{end}" if start and end else None,
+        "network_range": f"{start}-{end}" if start and end else None,
         "country": data.get("country"),
         "asn": asns[0] if asns else None,
     }

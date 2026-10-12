@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from app import audit
@@ -215,12 +216,19 @@ def change_password(body: ChangePasswordRequest, session: Session = Depends(get_
 @router.post("/mfa/enroll")
 def mfa_enroll(session: Session = Depends(get_session), user: User = Depends(current_user)):
     """Returns the TOTP URI and one-time recovery codes. Shown exactly once."""
+    if user.mfa_enabled:
+        raise HTTPException(status.HTTP_409_CONFLICT, "MFA is already enabled")
     secret = mfa.new_secret()
     codes, digests = mfa.new_recovery_codes()
     vault = get_vault()
-    user.mfa_secret_sealed = vault.seal(secret, FieldContext("users", "mfa_secret", user.id))
-    user.recovery_hashes = "\n".join(digests)
-    session.add(user)
+    sealed = vault.seal(secret, FieldContext("users", "mfa_secret", user.id))
+    changed = session.exec(update(User).where(
+        User.id == user.id, User.mfa_enabled == False,  # noqa: E712
+        User.mfa_secret_sealed == user.mfa_secret_sealed,
+    ).values(mfa_secret_sealed=sealed, recovery_hashes="\n".join(digests)))
+    if changed.rowcount != 1:
+        session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "MFA enrollment changed; refresh and retry")
     session.commit()
     audit.record(session, action="auth.mfa_enroll_start", actor_id=user.id)
     return {
@@ -239,7 +247,12 @@ def mfa_confirm(code: str, session: Session = Depends(get_session),
     )
     if not secret or not mfa.verify_code(secret, code):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "code did not verify")
-    user.mfa_enabled = True
-    session.add(user)
+    changed = session.exec(update(User).where(
+        User.id == user.id, User.mfa_enabled == False,  # noqa: E712
+        User.mfa_secret_sealed == user.mfa_secret_sealed,
+    ).values(mfa_enabled=True))
+    if changed.rowcount != 1:
+        session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "MFA enrollment changed; refresh and retry")
     session.commit()
     audit.record(session, action="auth.mfa_enabled", actor_id=user.id)
