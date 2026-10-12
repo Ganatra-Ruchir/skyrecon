@@ -23,8 +23,9 @@ login_limiter = RateLimiter(capacity=8, window_seconds=300)
 
 
 def client_identity(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for", "")
-    ip = fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "?")
+    # The ASGI server handles headers only from configured trusted proxies.
+    # Reading the raw header here lets clients rotate arbitrary identities.
+    ip = request.client.host if request.client else "?"
     return ip or "?"
 
 

@@ -215,6 +215,8 @@ def change_password(body: ChangePasswordRequest, session: Session = Depends(get_
 @router.post("/mfa/enroll")
 def mfa_enroll(session: Session = Depends(get_session), user: User = Depends(current_user)):
     """Returns the TOTP URI and one-time recovery codes. Shown exactly once."""
+    if user.mfa_enabled:
+        raise HTTPException(status.HTTP_409_CONFLICT, "MFA is already enabled")
     secret = mfa.new_secret()
     codes, digests = mfa.new_recovery_codes()
     vault = get_vault()
