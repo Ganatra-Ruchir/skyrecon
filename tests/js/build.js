@@ -9,7 +9,9 @@ const engine = fs.readFileSync(path.join(root, 'engine/engine.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'console/app.template.html'), 'utf8');
 if (!app.includes('/*__ENGINE__*/')) throw new Error('engine placeholder missing from console/app.template.html');
 
-const out = app.replace('/*__ENGINE__*/', () => engine);
+const cases = fs.readFileSync(path.join(root, 'console/cases.js'), 'utf8');
+const casesCSS = fs.readFileSync(path.join(root, 'console/cases.css'), 'utf8');
+const out = app.replace('/*__ENGINE__*/', () => engine).replace('/*__CASES__*/', () => cases).replace('/*__CASES_CSS__*/', () => casesCSS);
 fs.writeFileSync(path.join(root, 'console/index.html'), out);
 
 fs.writeFileSync(path.join(__dirname, 'preview.html'),

@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SkyRecon Console</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
@@ -280,6 +284,8 @@ textarea.paste::placeholder{color:#4a524d}
 <div class="fly" id="fly"></div>
 <div class="toasts" id="toasts"></div>
 
+<style>/*__CASES_CSS__*/</style>
+<script>/*__CASES__*/</script>
 <script>/*__ENGINE__*/</script>
 <script>
 (function(){
@@ -438,10 +444,11 @@ const svg=k=>'<svg viewBox="0 0 16 16">'+IC[k]+'</svg>';
 /* ── navigation ───────────────────────────────────────────────────────── */
 const NAV=[
  ['ANALYSE',[['ingest','Ingest','ingest'],['overview','Overview','grid'],['indicators','Indicators','ioc'],['alerts','Alerts','alert']]],
- ['INVESTIGATE',[['graph','Entity graph','graph'],['telemetry','Telemetry','tele'],['attack','ATT&CK','hex']]],
+ ['INVESTIGATE',[['cases','Case desk','grid'],['graph','Entity graph','graph'],['telemetry','Telemetry','tele'],['attack','ATT&CK','hex']]],
  ['CONFIGURE',[['rules','Detection rules','rule'],['export','Export','out'],['workspace','Workspace','gear']]],
 ];
 const META={
+ cases:['Case desk','Local investigation records, evidence links and handovers'],
  ingest:['Ingest','Paste a threat report, an IOC list or raw logs — everything downstream is computed from it'],
  overview:['Overview','Live totals for the indicators and alerts in this workspace'],
  indicators:['Indicators','Every indicator you have ingested, with the arithmetic behind its score'],
@@ -461,10 +468,10 @@ function buildNav(){
   $('#nav').innerHTML=NAV.map(([g,items])=>'<div class="nav-g">'+g+'</div>'+items.map(([k,l,ic])=>{
     const c=counts[k];
     const crit=k==='alerts'&&WS.alerts.some(a=>a.severity==='critical');
-    return '<div class="nav-i'+(view===k?' on':'')+'" data-v="'+k+'">'+svg(ic)+'<span>'+l+'</span>'+
+    return '<div role="button" tabindex="0" class="nav-i'+(view===k?' on':'')+'" data-v="'+k+'">'+svg(ic)+'<span>'+l+'</span>'+
       (c!=null&&c>0?'<span class="nav-c'+(crit?' hot':'')+'">'+c+'</span>':'')+'</div>';
   }).join('')).join('');
-  $$('.nav-i').forEach(n=>n.onclick=()=>go(n.dataset.v));
+  $$('.nav-i').forEach(n=>{n.onclick=()=>go(n.dataset.v);n.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go(n.dataset.v);}};});
   $('#brandMark').innerHTML=logoSvg(28)+'<div><div class="brand-n">SKYRECON</div><div class="brand-s">THREAT OPS</div></div>';
 }
 function go(v){ view=v; render(); }
@@ -483,6 +490,7 @@ function render(){
 
 /* ── views ────────────────────────────────────────────────────────────── */
 const V={};
+V.cases=()=>window.CaseDesk.render(WS);
 const emptyState=(title,body,cta)=>'<div class="empty">'+
   '<svg viewBox="0 0 24 24"><path d="M12 3 21 8v8l-9 5-9-5V8l9-5Z"/><path d="M12 12v5M12 8.5v.6"/></svg>'+
   '<h4>'+title+'</h4><p>'+body+'</p>'+(cta||'')+'</div>';
@@ -971,13 +979,14 @@ function wire(){
   const rr=$('#reRun'); if(rr) rr.onclick=()=>{recomputeAlerts();persist();render();toast('Rules re-evaluated over '+WS.indicators.length+' indicators');};
   const qi=$('#quickIngest'); if(qi) qi.onclick=()=>go('ingest');
   const wp=$('#wipe'); if(wp) wp.onclick=()=>{
-    if(!confirm('Delete every indicator, alert, event and custom rule in this workspace?'))return;
-    WS.indicators=[];WS.alerts=[];WS.events=[];WS.ingests=[];WS.rules=S.DEFAULT_RULES.map(r=>({...r}));WS.analysis=null;
+    if(!confirm('Delete every indicator, alert, event, custom rule and locally saved case in this workspace?'))return;
+    window.CaseDesk.clear(); WS.indicators=[];WS.alerts=[];WS.events=[];WS.ingests=[];WS.rules=S.DEFAULT_RULES.map(r=>({...r}));WS.analysis=null;
     persist();render();toast('Workspace cleared');};
   $('#scrim').onclick=closeFly;
 }
 
 const INIT={};
+INIT.cases=()=>window.CaseDesk.wire();
 INIT.ingest=()=>{
   const box=$('#pasteBox'), cc=$('#charCount');
   let source='report';
@@ -1144,3 +1153,5 @@ Netflow excerpt (20 baseline minutes, then the anomaly):
 buildNav(); render(); initStore();
 })();
 </script>
+
+</html>

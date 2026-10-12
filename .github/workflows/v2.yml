@@ -1,0 +1,19 @@
+name: V2 product checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node --test tests/js/cases.test.cjs
+      - run: node tests/js/build.js
+      - run: git diff --exit-code -- console/index.html
+      - run: npm run test:browser
