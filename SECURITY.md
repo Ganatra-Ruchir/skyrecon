@@ -184,3 +184,9 @@ welcome; please test against your own instance rather than someone else's.
 - [ ] Database on a persistent volume with backups — and the backups tested by restoring one
 - [ ] `python -m app.cli verify-audit` scheduled, with someone who reads the result
 - [ ] `pip-audit` in CI is green, and someone is subscribed to it failing
+
+## Trusted proxy configuration
+
+Rate-limit and audit identities use the ASGI peer address. Docker and Procfile commands no longer trust every forwarding-header sender. Uvicorn uses its trusted-proxy configuration; set `FORWARDED_ALLOW_IPS` to the exact proxy addresses in your deployment and keep the backend listener inaccessible to untrusted clients. Do not use `*` on a directly reachable listener. Without a correctly configured proxy, clients may share the proxy's rate-limit bucket.
+
+MFA enrollment and confirmation use conditional database updates so an outdated request cannot overwrite a concurrently confirmed secret.

@@ -9,7 +9,7 @@ pydantic-settings==2.15.0
 # Security primitives
 argon2-cffi==25.1.0
 cryptography==50.0.1
-pyjwt==2.13.0
+pyjwt==2.15.1
 pyotp==2.10.0
 
 # HTTP client: used by seed.py and by starlette's TestClient

@@ -100,4 +100,4 @@ HEALTHCHECK --interval=30s --timeout=4s --start-period=15s --retries=3 \
 # One worker per container: the rate limiter and the anomaly model hold process
 # state. Scale out with replicas behind a load balancer, not with --workers.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", \
-     "--proxy-headers", "--forwarded-allow-ips", "*", "--no-server-header"]
+     "--proxy-headers", "--no-server-header"]
