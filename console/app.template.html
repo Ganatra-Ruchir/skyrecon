@@ -980,7 +980,7 @@ function wire(){
   const qi=$('#quickIngest'); if(qi) qi.onclick=()=>go('ingest');
   const wp=$('#wipe'); if(wp) wp.onclick=()=>{
     if(!confirm('Delete every indicator, alert, event, custom rule and locally saved case in this workspace?'))return;
-    window.CaseDesk.clear(); WS.indicators=[];WS.alerts=[];WS.events=[];WS.ingests=[];WS.rules=S.DEFAULT_RULES.map(r=>({...r}));WS.analysis=null;
+    if(!window.CaseDesk.clear()){alert("Cases could not be cleared. Export your work and reload before retrying.");return;} WS.indicators=[];WS.alerts=[];WS.events=[];WS.ingests=[];WS.rules=S.DEFAULT_RULES.map(r=>({...r}));WS.analysis=null;
     persist();render();toast('Workspace cleared');};
   $('#scrim').onclick=closeFly;
 }

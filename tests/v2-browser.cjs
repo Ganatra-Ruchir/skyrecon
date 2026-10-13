@@ -10,5 +10,13 @@ await p.goto('http://127.0.0.1:'+server.address().port+'/console/index.html',{wa
    const dl=p.waitForEvent('download');await p.locator('#caseReport').click();assert.equal((await dl).suggestedFilename(),'skyrecon-case-handover.md');
    await p.reload();await p.locator('[data-v="cases"]').click();await p.locator('[data-case]').first().click();assert.equal(await p.locator('#caseOwner').inputValue(),'Demo analyst');assert.equal(await p.locator('[data-task]').isChecked(),true);
    await p.locator('#caseSearch').fill('absent');assert.equal(await p.locator('[data-case]').count(),0);await p.locator('#caseSearch').fill('');
+
+const original=await p.evaluate(()=>localStorage.getItem('skyrecon.cases.v1'));
+await p.locator('#importCases').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{"version":1,"cases":[{"title":"bad","notes":"'+ 'x'.repeat(20001)+'"}]}')});
+assert.match(await p.locator('#caseStatus').innerText(),/Import failed/);assert.equal(await p.evaluate(()=>localStorage.getItem('skyrecon.cases.v1')),original);
+const other=await context.newPage();await other.goto(p.url());await other.locator('[data-v="cases"]').click();await other.locator('[data-case]').first().click();await other.locator('#caseOwner').fill('Other tab');
+await p.locator('#caseOwner').fill('Stale write');assert.match(await p.locator('#caseStatus').innerText(),/another tab/);assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('skyrecon.cases.v1')).cases[0].owner),'Other tab');await other.close();
+await p.reload();await p.locator('[data-v="cases"]').click();assert.equal(await p.locator('[data-case]').count(),1);
+
 assert.deepEqual(errors,[],'Unexpected page errors');await p.setViewportSize({width:390,height:844});await p.waitForTimeout(200);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2),false,'Mobile horizontal overflow');console.log('V2 workflow, exports, reload behavior and mobile checks passed.');
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}})().catch(e=>{console.error(e);process.exitCode=1;});
