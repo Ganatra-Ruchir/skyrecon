@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "scripts": {
+    "test:browser": "node tests/v2-browser.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.0"
+  },
+  "name": "v2-product-checks"
+}

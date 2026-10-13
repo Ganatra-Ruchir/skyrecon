@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SkyRecon Console</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
@@ -280,6 +284,44 @@ textarea.paste::placeholder{color:#4a524d}
 <div class="fly" id="fly"></div>
 <div class="toasts" id="toasts"></div>
 
+<style>.case-banner{display:flex;justify-content:space-between;gap:30px;padding:25px 28px;border:1px solid #34473e;border-radius:14px;background:linear-gradient(120deg,#16291f,#121c18);margin-bottom:18px}.case-banner h2{font-size:26px;letter-spacing:-.04em;color:#e4f4e9;margin:10px 0}.case-banner p{color:#9caf9f;max-width:650px;line-height:1.6}.case-banner .eyebrow{color:#93d8a5;font-size:10px;letter-spacing:.18em}.case-radar{width:86px;height:86px;position:relative;border-radius:50%;border:1px solid #54745f;background:repeating-radial-gradient(circle,#182c2100 0 14px,#45614b66 15px 16px);display:grid;place-items:center;color:#a0edb4;font:10px monospace;flex-shrink:0;cursor:pointer;overflow:hidden}.case-radar i{position:absolute;inset:0;background:conic-gradient(transparent 240deg,#79c49455);animation:caseSweep 8s linear infinite}.case-radar span{z-index:1}.case-radar.paused i{animation-play-state:paused}@keyframes caseSweep{to{transform:rotate(360deg)}}.case-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:15px 0}.case-actions label.btn{cursor:pointer}.case-actions #caseStatus{font-size:11px;color:#b7c3b8}.case-layout{display:grid;grid-template-columns:270px 1fr;gap:18px}.case-list-panel,.case-editor{padding:20px;border:1px solid var(--line,#40332e);border-radius:12px;background:var(--panel,#1a1210);min-width:0}.case-list-panel>label,.case-form label,.case-note{font-size:11px;color:#b9b0a8;display:block;margin-bottom:8px}.case-list-panel input,.case-list-panel select,.case-form input,.case-form select,.case-note textarea,.case-actions input,.case-actions select{width:100%;border:1px solid #51463e;background:#181510;color:#e6e6d9;padding:10px;border-radius:6px;font:12px system-ui}.case-list-panel select{margin-bottom:16px}.case-list-panel input{margin:5px 0 14px}.case-item{width:100%;text-align:left;background:#201c17;color:#e6e6d9;border:1px solid #4b4238;border-radius:7px;padding:14px;margin-bottom:10px;cursor:pointer}.case-item.selected{border-color:#98c998;background:#223323}.case-item strong,.case-item span{display:block;overflow-wrap:anywhere}.case-item span{font-size:10px;color:#b5b2a7;margin-top:8px}.case-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}.case-form input,.case-form select{display:block;margin-top:7px}.case-editor h3{font-size:13px;color:#e6e6d9;margin:22px 0 12px}.case-actions input,.case-actions select{width:auto;max-width:100%;flex:1;min-width:180px}.case-link,.case-task{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #443a30;padding:9px 0;font-size:12px}.case-link code{overflow-wrap:anywhere;min-width:0}.case-note textarea{display:block;margin-top:8px;resize:vertical}.case-muted{color:#b5b2a7;font-size:11px;line-height:1.7}.case-task label{display:flex;align-items:center;gap:8px}.case-task input{accent-color:#90cd9a}.case-layout input:focus-visible,.case-layout select:focus-visible,.case-layout textarea:focus-visible,.case-layout button:focus-visible,.nav-i:focus-visible{outline:2px solid #98c998;outline-offset:3px}@media(max-width:850px){.case-layout{grid-template-columns:1fr}.case-form{grid-template-columns:1fr}.case-banner{padding:18px;gap:12px}.case-banner h2{font-size:21px}.case-radar{width:58px;height:58px}.case-list-panel #caseList{max-height:250px;overflow:auto}}@media(prefers-reduced-motion:reduce){.case-radar i{animation:none!important}}
+</style>
+<script>/* Local case management. No indicators are contacted and no remote service is used. */
+(function(root){
+'use strict';
+const STATES=['open','investigating','resolved'],PRIORITIES=['low','medium','high','critical'];
+let idSequence=0;
+const newId=()=>globalThis.crypto?.randomUUID?.()||'case-'+Date.now()+'-'+(++idSequence);
+const text=(v,n=200)=>typeof v==='string'?v.slice(0,n):'';
+function normalizeCase(raw){
+  if(!raw||typeof raw!=='object'||!text(raw.title).trim())throw Error('Each case needs a title.');
+  return {id:text(raw.id,100)||newId(),title:text(raw.title).trim(),owner:text(raw.owner,100),status:STATES.includes(raw.status)?raw.status:'open',priority:PRIORITIES.includes(raw.priority)?raw.priority:'medium',created:text(raw.created,40),updated:text(raw.updated,40),notes:text(raw.notes,20000),links:Array.isArray(raw.links)?[...new Set(raw.links.filter(v=>typeof v==='string').map(v=>text(v,2000)))].slice(0,200):[],tasks:Array.isArray(raw.tasks)?raw.tasks.slice(0,100).filter(t=>t&&typeof t.label==='string').map(t=>({label:text(t.label,300),done:t.done===true})):[]};
+}
+function parseBundle(source){const b=JSON.parse(source);if(!b||b.version!==1||!Array.isArray(b.cases)||b.cases.length>100)throw Error('Expected a version 1 case bundle with at most 100 cases.');for(const c of b.cases){if(!c||typeof c!=='object')throw Error('Invalid case.');for(const [k,max]of Object.entries({id:100,title:200,owner:100,created:40,updated:40,notes:20000}))if(c[k]!=null&&(typeof c[k]!=='string'||c[k].length>max))throw Error('Invalid or oversized '+k+'.');if(c.links!=null&&(!Array.isArray(c.links)||c.links.length>200||c.links.some(x=>typeof x!=='string'||x.length>2000)))throw Error('Invalid or oversized links.');if(c.tasks!=null&&(!Array.isArray(c.tasks)||c.tasks.length>100||c.tasks.some(t=>!t||typeof t.label!=='string'||t.label.length>300)))throw Error('Invalid or oversized tasks.');}const cases=b.cases.map(normalizeCase);if(new Set(cases.map(c=>c.id)).size!==cases.length)throw Error('Duplicate case identifiers in import.');return cases;}
+function markdown(c,available){return `# ${c.title}\n\nStatus: ${c.status}\nPriority: ${c.priority}\nOwner: ${c.owner||'Unassigned'}\nCreated: ${c.created}\nUpdated: ${c.updated}\n\n## Linked indicators\n${c.links.map(x=>'- '+x+(available&&!available.has(x)?' [unresolved in current workspace]':'')).join('\n')||'None linked.'}\n\n## Investigation notes\n${c.notes||'No notes.'}\n\n## Checklist\n${c.tasks.map(t=>'- ['+(t.done?'x':' ')+'] '+t.label).join('\n')}\n\nExported from SkyRecon local case desk. Findings require analyst validation.\n`;}
+if(typeof module!=='undefined'){module.exports={normalizeCase,parseBundle,markdown};return;}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);let cases=[],active='',query='',filter='all',ws=null,storageError='',lastStored=null,readFailed=false;
+try{lastStored=localStorage.getItem('skyrecon.cases.v1');if(lastStored)cases=parseBundle(lastStored);}catch{readFailed=true;storageError='Saved cases could not be read. Existing storage has not been overwritten.';}
+function current(){return cases.find(c=>c.id===active);}
+function message(s){const el=$('caseStatus');if(el)el.textContent=s;}
+function assertStorage(){if(readFailed)throw Error('Saved cases could not be read. Recover existing storage before making changes.');if(localStorage.getItem('skyrecon.cases.v1')!==lastStored)throw Error('Cases changed in another tab. Export your work, then reload before saving.');}
+function save(){try{assertStorage();const next=JSON.stringify({version:1,cases});localStorage.setItem('skyrecon.cases.v1',next);lastStored=next;storageError='';message('Saved in this browser · '+new Date().toLocaleTimeString());return true;}catch(err){storageError=err.message+' Export a JSON backup before leaving.';message(storageError);return false;}}
+function download(name,body,type){const url=URL.createObjectURL(new Blob([body],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function render(workspace){ws=workspace;return `<div class="case-banner"><div><div class="eyebrow">INVESTIGATION / V2</div><h2>Keep the evidence. Carry the context.</h2><p>Build a case, link findings and hand over a clear investigation record. Cases stay in this browser.</p></div><button class="case-radar" id="caseMotion" aria-label="Pause radar animation" aria-pressed="false"><i></i><span>CASE<br>DESK</span></button></div><div class="case-actions"><button class="btn pri" id="newCase">+ New case</button><button class="btn" id="exportCases">Export JSON backup</button><button class="btn" id="importCaseButton">Import JSON</button><input id="importCases" type="file" accept="application/json,.json" hidden><span id="caseStatus" role="status">${esc(storageError||'Local case desk ready')}</span></div><div class="case-layout"><aside class="case-list-panel"><label for="caseSearch">Search cases</label><input id="caseSearch" type="search" placeholder="Title, owner or notes" value="${esc(query)}"><label for="caseFilter">Status</label><select id="caseFilter"><option value="all">All cases</option>${STATES.map(s=>`<option ${filter===s?'selected':''}>${s}</option>`).join('')}</select><div id="caseList"></div></aside><section id="caseEditor" class="case-editor"></section></div>`;}
+function list(){const filtered=cases.filter(c=>(filter==='all'||c.status===filter)&&(c.title+' '+c.owner+' '+c.notes).toLowerCase().includes(query.toLowerCase()));$('caseList').innerHTML=filtered.map(c=>`<button class="case-item ${c.id===active?'selected':''}" data-case="${esc(c.id)}"><strong>${esc(c.title)}</strong><span>${c.priority} Â· ${c.status} Â· ${c.tasks.filter(t=>t.done).length}/${c.tasks.length} tasks</span></button>`).join('')||'<p class="case-muted">No cases match. Create a case to start an investigation.</p>';$('caseList').querySelectorAll('button').forEach(b=>b.onclick=()=>{active=b.dataset.case;list();editor();});}
+function editor(){const c=current();if(!c){$('caseEditor').innerHTML='<div class="empty"><h4>A place for your next investigation</h4><p>Create a case, then record the context behind the indicators.</p></div>';return;}
+$('caseEditor').innerHTML=`<div class="case-form"><label>Case title<input id="caseTitle" maxlength="200" value="${esc(c.title)}"></label><label>Owner<input id="caseOwner" maxlength="100" value="${esc(c.owner)}" placeholder="Analyst or team"></label><label>Priority<select id="casePriority">${PRIORITIES.map(p=>`<option ${c.priority===p?'selected':''}>${p}</option>`).join('')}</select></label><label>Status<select id="caseState">${STATES.map(p=>`<option ${c.status===p?'selected':''}>${p}</option>`).join('')}</select></label></div><h3>Linked evidence</h3><div class="case-actions"><select id="caseIndicator" aria-label="Indicator to link"><option value="">Choose an ingested indicatorâ€¦</option>${ws.indicators.filter(i=>!c.links.includes(i.key)).map(i=>`<option value="${esc(i.key)}">${esc(i.type+' Â· '+i.value)}</option>`).join('')}</select><button class="btn" id="linkIndicator">Link indicator</button></div><div id="caseLinks">${c.links.map((key,i)=>`<div class="case-link"><code>${esc(key)}${ws.indicators.some(i=>i.key===key)?'':' [unresolved in current workspace]'}</code><button class="btn sm" data-unlink="${i}" aria-label="Unlink ${esc(key)}">Remove</button></div>`).join('')||'<p class="case-muted">Ingest source material first, then link relevant indicators here.</p>'}</div><label class="case-note">Investigation notes<textarea id="caseNotes" rows="7" maxlength="20000" placeholder="Evidence, hypotheses, decisions and next stepsâ€¦">${esc(c.notes)}</textarea></label><h3>Next actions</h3><div id="caseTasks">${c.tasks.map((t,i)=>`<div class="case-task"><label><input type="checkbox" data-task="${i}" ${t.done?'checked':''}> ${esc(t.label)}</label><button class="btn sm" data-drop-task="${i}" aria-label="Remove task ${i+1}">Ã—</button></div>`).join('')}</div><div class="case-actions"><input id="newTask" maxlength="300" placeholder="Add an action item" aria-label="New action item"><button class="btn" id="addTask">Add task</button></div><div class="case-actions"><button class="btn pri" id="caseReport">Download handover</button><button class="btn" id="duplicateCase">Duplicate case</button><button class="btn danger" id="deleteCase">Delete case</button></div><small class="case-muted">Created ${esc(c.created)} Â· last edited ${esc(c.updated)}</small>`;
+const update=(field,value)=>{c[field]=value;c.updated=new Date().toISOString();save();list();};
+for(const [id,key] of [['caseTitle','title'],['caseOwner','owner'],['casePriority','priority'],['caseState','status'],['caseNotes','notes']])$(id).addEventListener('input',()=>{if(key==='title'&&!$(id).value.trim()){message('A case title is required.');return;}update(key,$(id).value);});
+$('linkIndicator').onclick=()=>{const key=$('caseIndicator').value;if(!key)return;if(c.links.length>=200){message('This case has reached its 200-indicator limit.');return;}if(!c.links.includes(key))c.links.push(key);update('links',c.links);editor();};$('caseLinks').querySelectorAll('button').forEach(b=>b.onclick=()=>{c.links.splice(+b.dataset.unlink,1);update('links',c.links);editor();});
+$('caseTasks').querySelectorAll('[data-task]').forEach(el=>el.onchange=()=>{c.tasks[+el.dataset.task].done=el.checked;update('tasks',c.tasks);});$('caseTasks').querySelectorAll('[data-drop-task]').forEach(b=>b.onclick=()=>{c.tasks.splice(+b.dataset.dropTask,1);update('tasks',c.tasks);editor();});$('addTask').onclick=()=>{const label=$('newTask').value.trim();if(!label)return;if(c.tasks.length>=100){message('Task limit reached.');return;}c.tasks.push({label,done:false});update('tasks',c.tasks);editor();};$('newTask').onkeydown=e=>{if(e.key==='Enter')$('addTask').click();};
+$('caseReport').onclick=()=>download('skyrecon-case-handover.md',markdown(c,new Set(ws.indicators.map(i=>i.key))),'text/markdown;charset=utf-8');$('duplicateCase').onclick=()=>create({...c,title:c.title+' (copy)',links:[...c.links],tasks:c.tasks.map(t=>({...t}))});$('deleteCase').onclick=()=>{if(!confirm('Delete this case from this browser? Export a backup first if needed.'))return;cases=cases.filter(x=>x.id!==c.id);active=cases[0]?.id||'';save();list();editor();};}
+function create(seed={}){if(cases.length>=100){message('Limit: 100 cases. Export a backup and remove completed cases first.');return;}if(storageError&&cases.length===0){message(storageError+' Resolve storage or export existing data before creating a new case.');return;}const now=new Date().toISOString(),c=normalizeCase({...seed,id:crypto.randomUUID(),title:seed.title||'Untitled investigation',created:now,updated:now});cases.unshift(c);active=c.id;save();list();editor();$('caseTitle')?.focus();}
+function wire(){$('newCase').onclick=()=>create();$('caseSearch').oninput=()=>{query=$('caseSearch').value;list();};$('caseFilter').onchange=()=>{filter=$('caseFilter').value;list();};$('exportCases').onclick=()=>download('skyrecon-cases.json',JSON.stringify({version:1,cases},null,2),'application/json');$('importCaseButton').onclick=()=>$('importCases').click();$('importCases').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{assertStorage();if(f.size>2*1024*1024)throw Error('Import limit is 2 MB.');const imported=parseBundle(await f.text());const existing=new Set(cases.map(c=>c.id)),fresh=imported.filter(c=>!existing.has(c.id));if(cases.length+fresh.length>100)throw Error('Import would exceed 100 cases.');cases.push(...fresh);active=active||fresh[0]?.id||'';const persisted=save();list();editor();if(persisted)message(`Imported ${fresh.length} cases; skipped ${imported.length-fresh.length} existing IDs.`);}catch(err){message('Import failed: '+err.message);}e.target.value='';};$('caseMotion').onclick=()=>{const p=$('caseMotion').classList.toggle('paused');$('caseMotion').setAttribute('aria-pressed',String(p));$('caseMotion').setAttribute('aria-label',p?'Resume radar animation':'Pause radar animation');};list();editor();}
+root.CaseDesk={render,wire,clear(){try{assertStorage();localStorage.removeItem('skyrecon.cases.v1');lastStored=null;cases=[];active='';return true;}catch(err){message('Cases were not cleared: '+err.message);return false;}},normalizeCase,parseBundle,markdown};
+})(typeof window==='undefined'?globalThis:window);
+</script>
 <script>/* ============================================================================
  * SkyRecon analysis engine
  * ----------------------------------------------------------------------------
@@ -1307,10 +1349,11 @@ const svg=k=>'<svg viewBox="0 0 16 16">'+IC[k]+'</svg>';
 /* ── navigation ───────────────────────────────────────────────────────── */
 const NAV=[
  ['ANALYSE',[['ingest','Ingest','ingest'],['overview','Overview','grid'],['indicators','Indicators','ioc'],['alerts','Alerts','alert']]],
- ['INVESTIGATE',[['graph','Entity graph','graph'],['telemetry','Telemetry','tele'],['attack','ATT&CK','hex']]],
+ ['INVESTIGATE',[['cases','Case desk','grid'],['graph','Entity graph','graph'],['telemetry','Telemetry','tele'],['attack','ATT&CK','hex']]],
  ['CONFIGURE',[['rules','Detection rules','rule'],['export','Export','out'],['workspace','Workspace','gear']]],
 ];
 const META={
+ cases:['Case desk','Local investigation records, evidence links and handovers'],
  ingest:['Ingest','Paste a threat report, an IOC list or raw logs — everything downstream is computed from it'],
  overview:['Overview','Live totals for the indicators and alerts in this workspace'],
  indicators:['Indicators','Every indicator you have ingested, with the arithmetic behind its score'],
@@ -1330,10 +1373,10 @@ function buildNav(){
   $('#nav').innerHTML=NAV.map(([g,items])=>'<div class="nav-g">'+g+'</div>'+items.map(([k,l,ic])=>{
     const c=counts[k];
     const crit=k==='alerts'&&WS.alerts.some(a=>a.severity==='critical');
-    return '<div class="nav-i'+(view===k?' on':'')+'" data-v="'+k+'">'+svg(ic)+'<span>'+l+'</span>'+
+    return '<div role="button" tabindex="0" class="nav-i'+(view===k?' on':'')+'" data-v="'+k+'">'+svg(ic)+'<span>'+l+'</span>'+
       (c!=null&&c>0?'<span class="nav-c'+(crit?' hot':'')+'">'+c+'</span>':'')+'</div>';
   }).join('')).join('');
-  $$('.nav-i').forEach(n=>n.onclick=()=>go(n.dataset.v));
+  $$('.nav-i').forEach(n=>{n.onclick=()=>go(n.dataset.v);n.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go(n.dataset.v);}};});
   $('#brandMark').innerHTML=logoSvg(28)+'<div><div class="brand-n">SKYRECON</div><div class="brand-s">THREAT OPS</div></div>';
 }
 function go(v){ view=v; render(); }
@@ -1352,6 +1395,7 @@ function render(){
 
 /* ── views ────────────────────────────────────────────────────────────── */
 const V={};
+V.cases=()=>window.CaseDesk.render(WS);
 const emptyState=(title,body,cta)=>'<div class="empty">'+
   '<svg viewBox="0 0 24 24"><path d="M12 3 21 8v8l-9 5-9-5V8l9-5Z"/><path d="M12 12v5M12 8.5v.6"/></svg>'+
   '<h4>'+title+'</h4><p>'+body+'</p>'+(cta||'')+'</div>';
@@ -1840,13 +1884,14 @@ function wire(){
   const rr=$('#reRun'); if(rr) rr.onclick=()=>{recomputeAlerts();persist();render();toast('Rules re-evaluated over '+WS.indicators.length+' indicators');};
   const qi=$('#quickIngest'); if(qi) qi.onclick=()=>go('ingest');
   const wp=$('#wipe'); if(wp) wp.onclick=()=>{
-    if(!confirm('Delete every indicator, alert, event and custom rule in this workspace?'))return;
-    WS.indicators=[];WS.alerts=[];WS.events=[];WS.ingests=[];WS.rules=S.DEFAULT_RULES.map(r=>({...r}));WS.analysis=null;
+    if(!confirm('Delete every indicator, alert, event, custom rule and locally saved case in this workspace?'))return;
+    if(!window.CaseDesk.clear()){alert("Cases could not be cleared. Export your work and reload before retrying.");return;} WS.indicators=[];WS.alerts=[];WS.events=[];WS.ingests=[];WS.rules=S.DEFAULT_RULES.map(r=>({...r}));WS.analysis=null;
     persist();render();toast('Workspace cleared');};
   $('#scrim').onclick=closeFly;
 }
 
 const INIT={};
+INIT.cases=()=>window.CaseDesk.wire();
 INIT.ingest=()=>{
   const box=$('#pasteBox'), cc=$('#charCount');
   let source='report';
@@ -2013,3 +2058,5 @@ Netflow excerpt (20 baseline minutes, then the anomaly):
 buildNav(); render(); initStore();
 })();
 </script>
+
+</html>

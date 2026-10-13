@@ -1,3 +1,5 @@
+> **V2 upgrade:** [feature ledger, usage and validation](V2_RELEASE.md).
+
 <div align="center">
 
 # SkyRecon

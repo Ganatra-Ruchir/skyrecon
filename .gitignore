@@ -21,3 +21,11 @@ package.json
 package-lock.json
 tests/js/preview.html
 tests/js/shot-*.png
+
+# Local browser test dependencies and reports
+node_modules/
+playwright-report/
+test-results/
+
+!package.json
+!package-lock.json
