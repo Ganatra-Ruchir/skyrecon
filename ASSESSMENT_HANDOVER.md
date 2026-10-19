@@ -58,13 +58,24 @@ This is a report interoperability layer, not bundled scanner execution. It was t
 
 | Reviewed upstream | Relevant purpose | Current integration status |
 |---|---|---|
-| [Trivy](https://github.com/aquasecurity/trivy) | Dependency/container/configuration findings; [SARIF output](https://trivy.dev/docs/latest/configuration/reporting/) | SARIF subset import implemented; native engine not bundled or run |
+| [Trivy](https://github.com/aquasecurity/trivy) | Dependency/container/configuration findings; [SARIF output](https://trivy.dev/docs/latest/configuration/reporting/) | SARIF and native schema-2 JSON package-vulnerability import implemented; native engine not bundled or run |
 | [Semgrep](https://github.com/semgrep/semgrep) | Source analysis; [CLI reporting](https://docs.semgrep.dev/cli-reference) | SARIF subset import implemented; rules and native engine not bundled |
 | [Gitleaks](https://github.com/gitleaks/gitleaks) | Secret detection | Candidate report producer; redact secrets; exact-version interoperability not validated |
-| [ZAP](https://github.com/zaproxy/zaproxy) | Web application assessment | Reviewed candidate; dedicated adapter and execution not implemented |
+| [ZAP](https://github.com/zaproxy/zaproxy) | Web application assessment | Traditional JSON report subset import implemented; scanner execution not implemented |
 | [Nuclei](https://github.com/projectdiscovery/nuclei) | Template-based assessments | Reviewed candidate; template execution not integrated |
 | [OpenSSF Scorecard](https://github.com/ossf/scorecard) | Repository security-health signals | Reviewed candidate; no automated score ingestion |
 
 The [awesome-security index](https://github.com/sbilly/awesome-security) was inspected for broader discovery. This was not an audit of all GitHub or 500 tools. Each additional engine needs version pinning, license/notice review, output fixtures, error handling and deployment resource limits. No third-party scanner source was copied into SkyRecon. Open-source software and separately licensed rules/data are distinct; ownership transfer does not override upstream terms.
 
 Format reference: [OASIS SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html).
+
+
+## Native report formats
+
+The Tool reports format selector now accepts ZAP traditional JSON (`@version`, `site[].alerts[]`) and Trivy schema-2 JSON (`Results[].Vulnerabilities[]`) through authenticated POST `/api/assessment/tool-report`. The existing SARIF endpoint remains compatible. Maximum input is 512 Ki characters, 100 sites/targets, 1,000 findings and 1,000 URI instances per ZAP alert; oversized or malformed inputs are rejected rather than silently truncated.
+
+ZAP retains supplied alert risk/confidence, description, remediation, target and URI instances. Request/response contents, attacks and per-instance evidence are excluded. Trivy retains advisory, package, installed/fixed version, target and tool severity; secret, license and misconfiguration records are not imported and their count is reported. Unknown additional fields are ignored. All reported text is displayed as text, not executable HTML. Export includes coverage limitations and a digest of the source document. Only digest, format and counts enter the encrypted audit log.
+
+These adapters were tested with synthetic fixtures shaped from the upstream documentation, not with deployed scanner binaries. Submitted URI paths/descriptions can still contain private information: redact before import. Neither a zero-result report nor the presence of a fix version proves safety or remediation. Review the original report and verify tool/ruleset versions in the receiving environment.
+
+Sources: [ZAP traditional JSON format](https://www.zaproxy.org/docs/desktop/addons/report-generation/report-traditional-json/) and [Trivy reporting](https://trivy.dev/docs/latest/configuration/reporting/).
