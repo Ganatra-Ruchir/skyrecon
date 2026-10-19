@@ -1,3 +1,5 @@
+> **Assessment workspace:** [capabilities, limits and two-day handover](ASSESSMENT_HANDOVER.md). Website observations, public-business phone attribution, CVE references and SARIF report import.
+
 > **V2 upgrade:** [feature ledger, usage and validation](V2_RELEASE.md).
 
 <div align="center">

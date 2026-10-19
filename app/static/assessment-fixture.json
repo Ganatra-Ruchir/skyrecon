@@ -1,0 +1,79 @@
+{
+  "version": "1.0",
+  "target": "example.com",
+  "assessed_at": "2026-10-18T11:07:33.442592+00:00",
+  "source": "LOCAL SYNTHETIC FIXTURE. No network request performed.",
+  "evidence_sha256": "f6f89fe22ed8c77194680f553bf8df169632d641ec33a81598d8f879d2c890b1",
+  "coverage": {
+    "implemented_check_families": 12,
+    "scope": "one response; headers, cookie flags and hostname",
+    "incomplete_response": false
+  },
+  "verdict": "Insufficient evidence to determine fraud",
+  "findings": [
+    {
+      "id": "hsts",
+      "severity": "low",
+      "title": "Missing strict-transport-security",
+      "evidence": "Not present in supplied response headers",
+      "remediation": "Enable HSTS after validating HTTPS across the service.",
+      "status": "needs review",
+      "confidence": "observed configuration"
+    },
+    {
+      "id": "csp",
+      "severity": "low",
+      "title": "Missing content-security-policy",
+      "evidence": "Not present in supplied response headers",
+      "remediation": "Define and test an application-specific Content Security Policy.",
+      "status": "needs review",
+      "confidence": "observed configuration"
+    },
+    {
+      "id": "referrer",
+      "severity": "low",
+      "title": "Missing referrer-policy",
+      "evidence": "Not present in supplied response headers",
+      "remediation": "Set an explicit restrictive Referrer-Policy.",
+      "status": "needs review",
+      "confidence": "observed configuration"
+    },
+    {
+      "id": "permissions",
+      "severity": "low",
+      "title": "Missing permissions-policy",
+      "evidence": "Not present in supplied response headers",
+      "remediation": "Restrict unused browser capabilities with Permissions-Policy.",
+      "status": "needs review",
+      "confidence": "observed configuration"
+    },
+    {
+      "id": "framing",
+      "severity": "medium",
+      "title": "No observed framing restriction",
+      "evidence": "Neither CSP frame-ancestors nor valid X-Frame-Options",
+      "remediation": "Restrict framing to trusted origins.",
+      "status": "needs review",
+      "confidence": "observed configuration"
+    },
+    {
+      "id": "banner",
+      "severity": "info",
+      "title": "Technology banner exposed",
+      "evidence": "Server or X-Powered-By header present",
+      "remediation": "Minimize unnecessary version disclosure; confirm applicability before CVE matching.",
+      "status": "needs review",
+      "confidence": "observed configuration"
+    }
+  ],
+  "not_tested": [
+    "SQL injection",
+    "XSS exploitation",
+    "authorization bypass",
+    "business logic",
+    "malware execution",
+    "all CVEs",
+    "identity of site owner"
+  ],
+  "limitations": "Configuration observations only. A missing header is not proof of exploitation. Redirects and blocked/error pages do not assess the destination application."
+}
