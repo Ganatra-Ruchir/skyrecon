@@ -21,6 +21,7 @@
       for(const [tag, text, cls] of [['span',f.severity+' · '+f.status,'badge'],['h3',f.title,''],['p',f.evidence,''],['p','Recommended action: '+f.remediation,'']]) {
         const el=document.createElement(tag); el.textContent=text; el.className=cls; card.append(el);
       }
+      if(f.target){const p=document.createElement('p');p.textContent='Target: '+f.target+(f.package?' · '+f.package+' '+f.installed_version:'');card.append(p);}
       $('findings').append(card);
     }
     if (!data.findings) {const p=document.createElement('p');p.textContent=data.attribution || data.limitations; $('findings').append(p);}
@@ -39,7 +40,7 @@
     e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;report=null;$('results').hidden=true;status('Review in progress…');
     try {let endpoint=mode,body;
       if(mode==='web'){endpoint='scan';body={url:$('url').value,authorization_reference:$('reference').value};}
-      if(mode==='sarif') body={report_json:$('sarif-payload').value};
+      if(mode==='sarif'){body={report_json:$('sarif-payload').value};if($('report-format').value!=='sarif'){endpoint='tool-report';body.format=$('report-format').value;}}
       if(mode==='phone') body={number:$('number').value};
       if(mode==='evidence'){if($('payload').value.length>262144)throw Error('Evidence exceeds 256 KB.');body=JSON.parse($('payload').value);}
       render(await request('assessment/'+endpoint,body));status('Review complete. Read the limitations before acting.');

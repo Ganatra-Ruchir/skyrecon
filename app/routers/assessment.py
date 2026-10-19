@@ -5,13 +5,13 @@ import json
 import os
 import sqlite3
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 
-from app import assessment, audit, sarif_import
+from app import assessment, audit, native_reports, sarif_import
 from app.db import get_session
 from app.deps import rate_limited, requires
 from app.models import User
@@ -57,6 +57,21 @@ class Phone(BaseModel):
 
 class ToolReport(BaseModel):
     report_json: str = Field(min_length=2, max_length=524288)
+
+
+class NativeReport(ToolReport):
+    format: Literal["zap", "trivy"]
+
+
+@router.post("/tool-report")
+def import_native(body: NativeReport, session: Session = Depends(get_session), user: User = Depends(requires(Permission.IOC_WRITE))):
+    try:
+        result = native_reports.normalize(json.loads(body.report_json), body.format)
+    except (ValueError, KeyError, TypeError, AttributeError, RecursionError) as exc:
+        raise HTTPException(422, "Invalid or unsupported native report; use ZAP traditional JSON or Trivy schema 2, at most 1000 findings") from exc
+    audit.record(session, action="assessment.tool-report", actor_id=user.id,
+                 detail={"format": body.format, "digest": result["evidence_sha256"], "coverage": result["coverage"]})
+    return result
 
 
 @router.post("/sarif")
