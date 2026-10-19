@@ -13,7 +13,7 @@ await p.goto('http://127.0.0.1:'+server.address().port+'/console/index.html',{wa
 
 const original=await p.evaluate(()=>localStorage.getItem('skyrecon.cases.v1'));
 await p.locator('#importCases').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{"version":1,"cases":[{"title":"bad","notes":"'+ 'x'.repeat(20001)+'"}]}')});
-assert.match(await p.locator('#caseStatus').innerText(),/Import failed/);assert.equal(await p.evaluate(()=>localStorage.getItem('skyrecon.cases.v1')),original);
+await p.locator('#caseStatus').filter({hasText:'Import failed'}).waitFor();assert.match(await p.locator('#caseStatus').innerText(),/Import failed/);assert.equal(await p.evaluate(()=>localStorage.getItem('skyrecon.cases.v1')),original);
 const other=await context.newPage();await other.goto(p.url());await other.locator('[data-v="cases"]').click();await other.locator('[data-case]').first().click();await other.locator('#caseOwner').fill('Other tab');
 await p.locator('#caseOwner').fill('Stale write');assert.match(await p.locator('#caseStatus').innerText(),/another tab/);assert.equal(await p.evaluate(()=>JSON.parse(localStorage.getItem('skyrecon.cases.v1')).cases[0].owner),'Other tab');await other.close();
 await p.reload();await p.locator('[data-v="cases"]').click();assert.equal(await p.locator('[data-case]').count(),1);

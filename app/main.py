@@ -16,7 +16,7 @@ from app import audit, services
 from app.config import get_settings
 from app.db import get_engine, init_db
 from app.models import User
-from app.routers import admin, auth, intel
+from app.routers import admin, assessment, auth, intel
 from app.security import passwords
 from app.security.crypto import FieldContext, get_vault
 from app.security.headers import SecurityHeadersMiddleware
@@ -104,6 +104,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(intel.router)
 app.include_router(admin.router)
+app.include_router(assessment.router)
 
 
 @app.exception_handler(Exception)

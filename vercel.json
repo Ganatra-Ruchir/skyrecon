@@ -1,9 +1,27 @@
 {
   "version": 2,
   "builds": [
-    { "src": "console/index.html", "use": "@vercel/static" }
+    {
+      "src": "console/index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "app/static/assessment*",
+      "use": "@vercel/static"
+    }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/console/index.html" }
+    {
+      "src": "/assessment/(.*)",
+      "dest": "/app/static/$1"
+    },
+    {
+      "src": "/api/(.*)",
+      "status": 404
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/console/index.html"
+    }
   ]
 }
